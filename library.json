@@ -1,0 +1,12 @@
+{
+    "name": "EspToolkit",
+    "keywords": "EspToolkit",
+    "description": "EspToolkit",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/calkoe/EspToolkit.git"
+    },
+    "version": "0.0.1",
+    "frameworks": "arduino",
+    "platforms": ["espressif32"]
+}
