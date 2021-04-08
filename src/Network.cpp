@@ -15,7 +15,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
             ESP_LOGE(EVT_NET_PREFIX, "TOGGLE AP");
             network->ap_enable = !network->ap_enable;
             tk->variableLoad(true);
-            network->commit();
+            esp_restart();
         }
     },this);
 
@@ -202,7 +202,7 @@ void Network::commit(){
     };
 
     //AP
-    if(ap_enable && ap_network.length() && !WiFi.softAPgetStationNum()){
+    if(ap_enable && tk->hostname.length() && !WiFi.softAPgetStationNum()){
         WiFi.softAPConfig(IPAddress(192, 168, 100, 1), IPAddress(192, 168, 100, 1), IPAddress(255, 255, 255, 0));
         WiFi.softAP((const char*)tk->hostname.c_str(),(const char*)ap_password.c_str());
     };
