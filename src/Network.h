@@ -6,6 +6,7 @@
 #include <Update.h>
 #include "EspToolkit.h"
 #include "esp_wifi.h"
+#include <tcpip_adapter.h>
 
 #define EVT_NET_PREFIX "net:"
 
@@ -19,7 +20,7 @@ class Network{
     private:
 
         EspToolkit* tk;
-        s16  calcRSSI(s32);
+        int16_t  calcRSSI(int32_t);
 
     public:
 
@@ -27,6 +28,8 @@ class Network{
         Network(EspToolkit*);
         void    commit();
         static esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
+        char*   getApIpStr(char* buf);
+        char*   getStaIpStr(char* buf);
 
         //CONFIG
         bool        sta_enable{false};

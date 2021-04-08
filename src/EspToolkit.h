@@ -11,8 +11,8 @@
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 
-#include <PostOffice.h>
-#include <SyncTimer.h>
+#include "include/PostOffice.h"
+#include "include/SyncTimer.h"
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
@@ -24,16 +24,6 @@
 #define STATUSLEDON         1
 #define BOOTBUTTON          0
 #define EEPROM_SIZE         1024  
-
-// Datatypes
-#define u8  unsigned char
-#define s8  char
-#define u16 unsigned int
-#define s16 int
-#define u32 unsigned long
-#define s32 signed long
-#define u64 unsigned long long
-#define s64 signed long long
 
 // Events
 #define EVT_TK_THREAD       0
@@ -61,7 +51,7 @@ class EspToolkit{
         enum AOS_DT    { AOS_DT_BOOL, AOS_DT_INT, AOS_DT_DOUBLE, AOS_DT_STRING };
         struct AOS_CMD {
             const char* name;
-            void        (*function)(void*,void (*)(char*), char**, u8);
+            void        (*function)(void*,void (*)(char*), char**, uint8_t);
             void*       ctx;
             const char* description;
             bool        hidden;
@@ -108,10 +98,10 @@ class EspToolkit{
         static std::string      firmware;
 
         //API Commands
-        static bool             commandAdd(const char*,void (*)(void* ctx,void (*reply)(char*),char** arg, u8 argLen),void* ctx,const char* = "",bool = false);
+        static bool             commandAdd(const char*,void (*)(void* ctx,void (*reply)(char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);
         static void             commandList(const char*,void (*reply)(char*));
         static void             commandMan(const char*, void (*reply)(char*));
-        static bool             commandCall(const char*,void (*reply)(char*),char** = 0, u8 = 0);
+        static bool             commandCall(const char*,void (*reply)(char*),char** = 0, uint8_t = 0);
         static void             commandParseAndCall(char* ca,void (*reply)(char*));
 
         //API Variables

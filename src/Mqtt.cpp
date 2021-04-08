@@ -4,8 +4,6 @@
  
 Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
 
-    tk->status[STATUS_BIT_MQTT] = false;
-
     // Commit on WiFi Connected
     tk->events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
         Mqtt* _this = (Mqtt*)ctx;
@@ -15,7 +13,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
     tk->variableAdd("mqtt/enable",  enable,   "📡  MQTT Enable");
     tk->variableAdd("mqtt/uri",     uri,      "📡  MQTT URI");
 
-    tk->commandAdd("mqttCommit",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("mqttCommit",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[128];
         Mqtt*     mqtt = (Mqtt*) c;
         EspToolkit* tk = (EspToolkit*) mqtt->tk;
@@ -31,7 +29,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         reply(tk->EOL);
     }, this, "📡 [mqtt/uri] | Apply mqtt settings and connect to configured mqtt server",false);
 
-    tk->commandAdd("mqttPublish",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("mqttPublish",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         Mqtt*     mqtt = (Mqtt*) c;
         EspToolkit* tk = (EspToolkit*) mqtt->tk;
         if(parCnt>=3){
@@ -41,7 +39,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         };
     },this,"📡 [topic] [message] | publish a message to topic",false);
 
-    tk->commandAdd("mqttStatus",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("mqttStatus",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[128];
         Mqtt*     mqtt = (Mqtt*) c;
         EspToolkit* tk = (EspToolkit*) mqtt->tk;
@@ -70,15 +68,13 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
 
 void Mqtt::commit(){   
 
-    //Destroy Old Session
-    if(client){
-        esp_mqtt_client_disconnect(client);
-        esp_mqtt_client_stop(client);
-        esp_mqtt_client_destroy(client);
-    }
+    tk->status[STATUS_BIT_MQTT] = true;
 
-    //Beginn new Session
+    //Beginn Session
     if(enable){
+        
+        tk->status[STATUS_BIT_MQTT] = false;
+
         esp_mqtt_client_config_t cfg{};
         cfg.event_handle = &mqtt_event_handler; 
         cfg.user_context = this;  
@@ -86,6 +82,7 @@ void Mqtt::commit(){
         cfg.client_id    = tk->hostname.c_str();
         client = esp_mqtt_client_init(&cfg);
         esp_mqtt_client_start(client);
+
     }
 
 }
@@ -95,6 +92,11 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
     Mqtt* _this                     = (Mqtt*)event->user_context;
     //int msg_id = event->msg_id;
     switch (event->event_id) {
+        case MQTT_EVENT_BEFORE_CONNECT:
+            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_BEFORE_CONNECT");
+            _this->tk->events.emit("MQTT_EVENT_BEFORE_CONNECT");
+            if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
+            break;
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_CONNECTED");
             _this->tk->events.emit("MQTT_EVENT_CONNECTED");
@@ -103,7 +105,7 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DISCONNECTED");
             _this->tk->events.emit("MQTT_EVENT_DISCONNECTED");
-            _this->tk->status[STATUS_BIT_MQTT] = false;
+            if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
             break;
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_SUBSCRIBED");
@@ -137,7 +139,7 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
         }
         case MQTT_EVENT_ERROR:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_ERROR");
-            _this->tk->status[STATUS_BIT_MQTT] = false;
+            if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
             _this->lastError = *event->error_handle;
             _this->tk->events.emit("MQTT_EVENT_ERROR");
             break;

@@ -6,8 +6,8 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-#include <LineIn.h>
-#include <PostOffice.h>
+#include "../../include/LineIn.h"
+#include "../../include/PostOffice.h"
 
 #define EVT_UART_THREAD 1
 

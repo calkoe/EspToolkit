@@ -7,7 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include <PostOffice.h>
+#include "../../include/PostOffice.h"
 
 /**
  * @brief   Thread-Safe an non-blocking GPIO observer library

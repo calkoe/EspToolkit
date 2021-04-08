@@ -4,8 +4,6 @@
 
 Network::Network(EspToolkit* tk):tk{tk}{
 
-    tk->status[STATUS_BIT_NETWORK] = false;
-
     tcpip_adapter_init();
 
     // BUTTON TOGGLE AP
@@ -31,7 +29,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot-Mode");
     tk->variableAdd("hotspot/password",  ap_password,       "📶 Hotspot Password");
     
-    tk->commandAdd("wifiStatus",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("wifiStatus",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         char OUT[LONG];
@@ -77,7 +75,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
     },this,  "📶 Shows System / Wifi status");
     
 
-    tk->commandAdd("wifiFirmware",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("wifiFirmware",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
@@ -111,15 +109,15 @@ Network::Network(EspToolkit* tk):tk{tk}{
         }
     },this,"📶 [url] | load and install new firmware from URL (http or https)");
 
-    tk->commandAdd("wifiScan",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("wifiScan",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         reply((char*)"Scaning for Networks...");
         reply(tk->EOL);
-        u8 n = WiFi.scanNetworks();
+        uint8_t n = WiFi.scanNetworks();
         if(n){
-            for (u8 i = 0; i < n; i++){
+            for (uint8_t i = 0; i < n; i++){
                 const char* e;
                 switch(WiFi.encryptionType(i)){
                     case 0: e = "OPEN";break;
@@ -136,7 +134,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         }else reply((char*)"❌ No Networks found!");
     },this,    "📶 Scans for nearby networks");
 
-    tk->commandAdd("wifiCommit",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("wifiCommit",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
@@ -157,7 +155,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
 
-    tk->commandAdd("wifiDns",[](void* c, void (*reply)(char*), char** param,u8 parCnt){
+    tk->commandAdd("wifiDns",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
@@ -174,6 +172,8 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
 void Network::commit(){
 
+    tk->status[STATUS_BIT_NETWORK] = true;
+
     esp_event_loop_init(wifi_event_handler, this);
     WiFi.persistent(false); 
     WiFi.mode(WIFI_STA);
@@ -184,6 +184,9 @@ void Network::commit(){
 
     //STA
     if(sta_enable && sta_network.length()){
+        
+        tk->status[STATUS_BIT_NETWORK] = false;
+
         if(sta_ip.length() && sta_subnet.length() && sta_gateway.length() && sta_dns.length()){
             IPAddress wifiIp;
             IPAddress wifiDns;
@@ -215,16 +218,30 @@ esp_err_t Network::wifi_event_handler(void *ctx, system_event_t *event)
             _this->tk->events.emit("SYSTEM_EVENT_STA_START");
             esp_wifi_connect();
             break;
+        case SYSTEM_EVENT_STA_CONNECTED:
+            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_CONNECTED");
+            _this->tk->events.emit("SYSTEM_EVENT_STA_CONNECTED");
+            break;
         case SYSTEM_EVENT_STA_GOT_IP:
             ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_GOT_IP");
             _this->tk->events.emit("SYSTEM_EVENT_STA_GOT_IP");
             _this->tk->status[STATUS_BIT_NETWORK] = true;
             break;
+        case SYSTEM_EVENT_STA_LOST_IP:
+            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_LOST_IP");
+            _this->tk->events.emit("SYSTEM_EVENT_STA_LOST_IP");
+            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
+            break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
             ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_DISCONNECTED");
             _this->tk->events.emit("SYSTEM_EVENT_STA_DISCONNECTED");
-            _this->tk->status[STATUS_BIT_NETWORK] = false;
+            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             esp_wifi_connect();
+            break;
+        case SYSTEM_EVENT_STA_STOP:
+            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_STOP");
+            _this->tk->events.emit("SYSTEM_EVENT_STA_STOP");
+            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
         default:
             break;
@@ -232,8 +249,22 @@ esp_err_t Network::wifi_event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-inline s16 Network::calcRSSI(s32 r){
+inline int16_t Network::calcRSSI(int32_t r){
     return min(max(2 * (r + 100.0), 0.0), 100.0);
 };
+
+char* Network::getApIpStr(char* buf){
+    tcpip_adapter_ip_info_t ipInfo; 
+    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo);
+    sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
+    return buf;
+}
+
+char* Network::getStaIpStr(char* buf){
+    tcpip_adapter_ip_info_t ipInfo; 
+    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
+    sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
+    return buf;
+}
 
 #endif
