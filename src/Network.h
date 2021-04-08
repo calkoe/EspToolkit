@@ -9,6 +9,11 @@
 
 #define EVT_NET_PREFIX "net:"
 
+/**
+ * @brief   Network
+ * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
+ * @date    4.2021
+*/
 class Network{
 
     private:

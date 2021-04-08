@@ -12,9 +12,9 @@
 #define EVT_UART_THREAD 1
 
 /**
- * @brief Uart communication
- * @author Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
- * @date 4.2021
+ * @brief   Uart communication
+ * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
+ * @date    4.2021
 */
 class Uart{
 

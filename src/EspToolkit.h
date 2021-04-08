@@ -1,15 +1,6 @@
 #pragma once
 #if defined ESP32
 
-//
-//  ESPToolkit.h
-//  V0.1
-//
-//  Created by Calvin Köcher on 15.06.20.
-//  Copyright © 2020 Calvin Köcher. All rights reserved.
-//  https://github.com/calkoe/ESPToolkit
-//
-
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -26,8 +17,8 @@
 #include "tasks/Uart/Uart.h"
 
 //  Definitions
-#define SHORT               128     // OUT BUFFER
-#define LONG                128     //BufferIn, BufferOut, TerminalHistory
+#define SHORT               128   
+#define LONG                128     
 #define SERSPEED            115200 
 #define STATUSLED           2
 #define STATUSLEDON         1
@@ -57,6 +48,11 @@
 #define STATUS_BIT_MQTT     3
 #define STATUS_BIT_APP1     4
 
+/**
+ * @brief   EspToolkit
+ * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
+ * @date    4.2021
+*/
 class EspToolkit{
     
     private:

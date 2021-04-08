@@ -10,9 +10,9 @@
 #include <PostOffice.h>
 
 /**
- * @brief Thread-Safe an non-blocking GPIO observer library
- * @author Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
- * @date 4.2021
+ * @brief   Thread-Safe an non-blocking GPIO observer library
+ * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
+ * @date    4.2021
 */
 class Button{
 

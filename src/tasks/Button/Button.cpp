@@ -9,7 +9,6 @@ Button::Button(PostOffice<std::string>* events, int taskStack, uint8_t taskPrio,
 
     xTaskCreate([](void* arg){
         Button* _this = (Button*) arg;
-        auto getUs = [](){return esp_timer_get_time();};
 
         // SETUP
         struct button_t{

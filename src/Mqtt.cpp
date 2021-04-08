@@ -48,9 +48,9 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         snprintf(OUT,128,"%-30s : %s %s","Enable",mqtt->enable ? "true" : "false",tk->EOL);reply(OUT);
         snprintf(OUT,128,"%-30s : %s %s","Connected",tk->status[STATUS_BIT_MQTT]  ? "true" : "false",tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s %s","esp_tls_last_esp_err",esp_err_to_name(mqtt->lastError.esp_tls_last_esp_err),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d %s","esp_tls_stack_err",mqtt->lastError.esp_tls_stack_err,tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d %s","esp_tls_cert_verify_flags",mqtt->lastError.esp_tls_cert_verify_flags,tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d %s","esp_transport_sock_errno",mqtt->lastError.esp_transport_sock_errno,tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","esp_tls_stack_err",strerror(mqtt->lastError.esp_tls_stack_err),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","esp_tls_cert_verify_flags",strerror(mqtt->lastError.esp_tls_cert_verify_flags),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","esp_transport_sock_errno",strerror(mqtt->lastError.esp_transport_sock_errno),tk->EOL);reply(OUT);
         char* error_type; 
         if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_NONE) error_type = (char*)"MQTT_ERROR_TYPE_NONE";
         if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) error_type = (char*)"MQTT_ERROR_TYPE_TCP_TRANSPORT";
@@ -118,12 +118,16 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
             _this->tk->events.emit("MQTT_EVENT_PUBLISHED");
             break;
         case MQTT_EVENT_DATA:{
+            //std::cout << "event->topic_len: " << event->topic_len << std::endl;
+            //std::cout << "event->data_len: "  << event->data_len  << std::endl;
+            //printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+            //printf("DATA=%.*s\r\n", event->data_len, event->data);
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DATA");
             _this->tk->events.emit("MQTT_EVENT_DATA");
             char* topic = (char*) malloc(event->topic_len + 1);
             char* data  = (char*) malloc(event->data_len  + 1);
-            xthal_memcpy(topic, event->topic, event->topic_len + 1);
-            xthal_memcpy(data,  event->data,  event->data_len  + 1);
+            if(event->topic_len > 0) xthal_memcpy(topic, event->topic, event->topic_len + 1);
+            if(event->data_len  > 0) xthal_memcpy(data,  event->data,  event->data_len  + 1);
             topic[event->topic_len] = '\0';
             data[event->data_len]   = '\0';
             _this->tk->events.emit(topic,(void*)data,event->data_len  + 1);

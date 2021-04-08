@@ -6,6 +6,11 @@
  
 #define EVT_MQTT_PREFIX "mqtt:"
 
+/**
+ * @brief   Mqtt
+ * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
+ * @date    4.2021
+*/
 class Mqtt{
 
     private:
