@@ -9,7 +9,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tcpip_adapter_init();
 
     // BUTTON TOGGLE AP
-    tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,"bootbutton1000ms");
+    tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
     tk->events.on(EVT_TK_THREAD,"bootbutton1000ms",[](void* ctx, void* arg){
         Network*    network = (Network*) ctx;
         EspToolkit* tk      = (EspToolkit*) network->tk;
@@ -61,19 +61,19 @@ Network::Network(EspToolkit* tk):tk{tk}{
         IPAddress subnetMask    = WiFi.subnetMask();
         IPAddress gatewayIP     = WiFi.gatewayIP();
         IPAddress apIP          = WiFi.softAPIP();
-        snprintf(OUT,LONG,"%-20s : %s %s","Mode",m,tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %s %s","Status",s,tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %s %s","Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false",tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %s %s","Hostname",tk->hostname.c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %s %s","LocalMAC",WiFi.macAddress().c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %s %s","BSSID",WiFi.BSSIDstr().c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %d.%d.%d.%d %s","LocalIP",localIP[0],localIP[1],localIP[2],localIP[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %d.%d.%d.%d %s","SubnetMask",subnetMask[0],subnetMask[1],subnetMask[2],subnetMask[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %d.%d.%d.%d %s","GatewayIP",gatewayIP[0],gatewayIP[1],gatewayIP[2],gatewayIP[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %d dBm (%d%%) %s","RSSI",WiFi.RSSI(),network->calcRSSI(WiFi.RSSI()),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %s %s","AP MAC",WiFi.softAPmacAddress().c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %d.%d.%d.%d %s","AP IP",apIP[0],apIP[1],apIP[2],apIP[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-20s : %d %s","AP Stations",WiFi.softAPgetStationNum(),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","Mode",m,tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","Status",s,tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false",tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","Hostname",tk->hostname.c_str(),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","LocalMAC",WiFi.macAddress().c_str(),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","BSSID",WiFi.BSSIDstr().c_str(),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","LocalIP",localIP[0],localIP[1],localIP[2],localIP[3],tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","SubnetMask",subnetMask[0],subnetMask[1],subnetMask[2],subnetMask[3],tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","GatewayIP",gatewayIP[0],gatewayIP[1],gatewayIP[2],gatewayIP[3],tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d dBm (%d%%) %s","RSSI",WiFi.RSSI(),network->calcRSSI(WiFi.RSSI()),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s %s","AP MAC",WiFi.softAPmacAddress().c_str(),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","AP IP",apIP[0],apIP[1],apIP[2],apIP[3],tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d %s","AP Stations",WiFi.softAPgetStationNum(),tk->EOL);reply(OUT);
     },this,  "📶 Shows System / Wifi status");
     
 
@@ -88,10 +88,10 @@ Network::Network(EspToolkit* tk):tk{tk}{
             HTTPUpdateResult ret;
             if(url.startsWith("https")){
                 WiFiClientSecure net;
-                ret = httpUpdate.update(net, param[1], tk->firmware);
+                ret = httpUpdate.update(net, param[1], (String)tk->firmware.c_str());
             }else{
                 WiFiClient net;
-                ret = httpUpdate.update(net, param[1], tk->firmware);
+                ret = httpUpdate.update(net, param[1], (String)tk->firmware.c_str());
             } 
             switch(ret) {
                 case HTTP_UPDATE_FAILED:
@@ -131,7 +131,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
                     case 6: e = "AUTH_MAX";break;
                     default:e = "UNKOWN";
                 }
-                snprintf(OUT,LONG,"%-20s : %d dBm (%d%%) (%s) BSSID: %s %s",WiFi.SSID(i).c_str(),WiFi.RSSI(i), network->calcRSSI(WiFi.RSSI(i)),e,WiFi.BSSIDstr(i).c_str(),tk->EOL);reply(OUT);
+                snprintf(OUT,LONG,"%-30s : %d dBm (%d%%) (%s) BSSID: %s %s",WiFi.SSID(i).c_str(),WiFi.RSSI(i), network->calcRSSI(WiFi.RSSI(i)),e,WiFi.BSSIDstr(i).c_str(),tk->EOL);reply(OUT);
             }
         }else reply((char*)"❌ No Networks found!");
     },this,    "📶 Scans for nearby networks");
@@ -183,23 +183,23 @@ void Network::commit(){
     WiFi.mode(WIFI_OFF);
 
     //STA
-    if(sta_enable && sta_network){
-        if(sta_ip && sta_subnet && sta_gateway && sta_dns){
+    if(sta_enable && sta_network.length()){
+        if(sta_ip.length() && sta_subnet.length() && sta_gateway.length() && sta_dns.length()){
             IPAddress wifiIp;
             IPAddress wifiDns;
             IPAddress wifiGateway;
             IPAddress wifiSubnet; 
-            wifiIp.fromString(sta_ip);
-            wifiDns.fromString(sta_dns);
-            wifiSubnet.fromString(sta_subnet);
-            wifiGateway.fromString(sta_gateway);
+            wifiIp.fromString((String)sta_ip.c_str());
+            wifiDns.fromString((String)sta_dns.c_str());
+            wifiSubnet.fromString((String)sta_subnet.c_str());
+            wifiGateway.fromString((String)sta_gateway.c_str());
             WiFi.config(wifiIp,wifiGateway,wifiSubnet,wifiDns);
         }
         WiFi.begin((const char*)sta_network.c_str(),(const char*)sta_password.c_str());
     };
 
     //AP
-    if(ap_enable && ap_network && !WiFi.softAPgetStationNum()){
+    if(ap_enable && ap_network.length() && !WiFi.softAPgetStationNum()){
         WiFi.softAPConfig(IPAddress(192, 168, 100, 1), IPAddress(192, 168, 100, 1), IPAddress(255, 255, 255, 0));
         WiFi.softAP((const char*)tk->hostname.c_str(),(const char*)ap_password.c_str());
     };

@@ -52,17 +52,17 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %d %s","esp_tls_cert_verify_flags",mqtt->lastError.esp_tls_cert_verify_flags,tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d %s","esp_transport_sock_errno",mqtt->lastError.esp_transport_sock_errno,tk->EOL);reply(OUT);
         char* error_type; 
-        if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_NONE) error_type = "MQTT_ERROR_TYPE_NONE";
-        if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) error_type = "MQTT_ERROR_TYPE_TCP_TRANSPORT";
-        if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) error_type = "MQTT_ERROR_TYPE_CONNECTION_REFUSED";
+        if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_NONE) error_type = (char*)"MQTT_ERROR_TYPE_NONE";
+        if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) error_type = (char*)"MQTT_ERROR_TYPE_TCP_TRANSPORT";
+        if(mqtt->lastError.error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) error_type = (char*)"MQTT_ERROR_TYPE_CONNECTION_REFUSED";
         snprintf(OUT,LONG,"%-30s : %s %s","error_type",error_type,tk->EOL);reply(OUT);
         char* connect_return_code;
-        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_ACCEPTED) connect_return_code = "MQTT_CONNECTION_ACCEPTED";
-        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_PROTOCOL) connect_return_code = "MQTT_CONNECTION_REFUSE_PROTOCOL";
-        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_ID_REJECTED) connect_return_code = "MQTT_CONNECTION_REFUSE_ID_REJECTED";
-        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_SERVER_UNAVAILABLE) connect_return_code = "MQTT_CONNECTION_REFUSE_SERVER_UNAVAILABLE";
-        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_BAD_USERNAME) connect_return_code = "MQTT_CONNECTION_REFUSE_BAD_USERNAME";
-        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED) connect_return_code = "MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED";
+        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_ACCEPTED) connect_return_code = (char*)"MQTT_CONNECTION_ACCEPTED";
+        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_PROTOCOL) connect_return_code = (char*)"MQTT_CONNECTION_REFUSE_PROTOCOL";
+        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_ID_REJECTED) connect_return_code = (char*)"MQTT_CONNECTION_REFUSE_ID_REJECTED";
+        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_SERVER_UNAVAILABLE) connect_return_code = (char*)"MQTT_CONNECTION_REFUSE_SERVER_UNAVAILABLE";
+        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_BAD_USERNAME) connect_return_code = (char*)"MQTT_CONNECTION_REFUSE_BAD_USERNAME";
+        if(mqtt->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED) connect_return_code = (char*)"MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED";
         snprintf(OUT,LONG,"%-30s : %s %s","connect_return_code",connect_return_code,tk->EOL);reply(OUT);
     }, this, "📡  Shows MQTT connection Status",false);
 

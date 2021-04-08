@@ -9,6 +9,11 @@
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
 
+/**
+ * @brief Thread-Safe multi endpoint event messenger
+ * @author Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
+ * @date 4.2021
+*/
 template <class T>
 class PostOffice{
 
@@ -21,7 +26,6 @@ class PostOffice{
             void    (*callback)(void*,void*);
             void*   ctx;
             void*   arg;
-            size_t  argSize;
         };
 
         SemaphoreHandle_t xBinarySemaphore;
@@ -63,8 +67,9 @@ void PostOffice<T>::on(uint8_t thread,T topic,void (*callback)(void* ctx,void* a
     lock(isr);
 
     //  Create Topic Vector if needed
-    if(callbacks.find(topic) == callbacks.end())
+    if(callbacks.find(topic) == callbacks.end()){
         callbacks.insert( std::pair< T,std::vector<callback_t> >( topic, std::vector<callback_t>()));
+    }
 
     //  Insert Callback in Topic Vector
     callbacks[topic].insert(callbacks[topic].end(),(callback_t){
@@ -108,14 +113,14 @@ bool PostOffice<T>::emit(T topic, void* arg, size_t argSize, bool isr){
     for(callback_t& callback: callbacks[topic]) {
 
         //  Create Thread Queue if needed
-        if(tasks.find(callback.thread) == tasks.end())
+        if(tasks.find(callback.thread) == tasks.end()){
             tasks.insert(std::pair<uint8_t,QueueHandle_t>( callback.thread, xQueueCreate( this->queueLength, sizeof(callback_t))));
+        }
 
         //  Save arg to Heap and add task_t to thread specific queue
         if(arg){
-            callback.argSize   = argSize;
-            callback.arg       = malloc(callback.argSize);
-            xthal_memcpy(callback.arg, arg, callback.argSize);
+            callback.arg = malloc(argSize);
+            xthal_memcpy(callback.arg, arg, argSize);
         }
         if(xQueueSend(tasks[callback.thread], (void*) &callback, 0) == pdFALSE) ret = false;
         

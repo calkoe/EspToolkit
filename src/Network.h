@@ -7,7 +7,6 @@
 #include "EspToolkit.h"
 #include "esp_wifi.h"
 
-
 #define EVT_NET_PREFIX "net:"
 
 class Network{
@@ -25,16 +24,16 @@ class Network{
         static esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
 
         //CONFIG
-        bool   sta_enable{false};
-        String sta_network{""};
-        String sta_password{""};
-        String sta_ip{"0.0.0.0"};
-        String sta_subnet{"0.0.0.0"};
-        String sta_gateway{"0.0.0.0"};
-        String sta_dns{"0.0.0.0"};
-        bool   ap_enable{false};
-        String ap_network{""};
-        String ap_password{""};
+        bool        sta_enable{false};
+        std::string sta_network{""};
+        std::string sta_password{""};
+        std::string sta_ip{"0.0.0.0"};
+        std::string sta_subnet{"0.0.0.0"};
+        std::string sta_gateway{"0.0.0.0"};
+        std::string sta_dns{"0.0.0.0"};
+        bool        ap_enable{false};
+        std::string ap_network{""};
+        std::string ap_password{""};
     
 };
 

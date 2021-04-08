@@ -26,7 +26,7 @@ class Mqtt{
 
         //CONFIG
         bool          enable{true};
-        String        uri{"mqtt://test.mosquitto.org:1883"};
+        std::string   uri{"mqtt://test.mosquitto.org:1883"};
 
 };
 
