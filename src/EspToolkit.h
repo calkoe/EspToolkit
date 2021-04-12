@@ -20,7 +20,7 @@
 
 //  Definitions
 #define SHORT               128   
-#define LONG                128     
+#define LONG                256     
 #define SERSPEED            115200 
 #define STATUSLED           2
 #define STATUSLEDON         1
