@@ -22,7 +22,8 @@ Uart::Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastT
         std::cout << (char*)arg;
     },NULL);
 
-     xTaskCreate([](void* ctx){
+    // TASK
+    xTaskCreate([](void* ctx){
         Uart* _this = (Uart*) ctx;
         uint8_t c;
         while(true){
@@ -30,7 +31,7 @@ Uart::Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastT
             _this->events->loop(EVT_UART_THREAD);
             vTaskDelay(10);
         }
-    }, "Uart", 2048, this, 1, NULL);
+    }, "uart", 2048, this, 1, NULL);
     
 };
 

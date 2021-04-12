@@ -75,12 +75,11 @@ void Mqtt::commit(){
         
         tk->status[STATUS_BIT_MQTT] = false;
 
-        esp_mqtt_client_config_t cfg{};
-        cfg.event_handle = &mqtt_event_handler; 
-        cfg.user_context = this;  
-        cfg.uri          = uri.c_str();
-        cfg.client_id    = tk->hostname.c_str();
-        client = esp_mqtt_client_init(&cfg);
+        config.event_handle = &mqtt_event_handler; 
+        config.user_context = this;  
+        config.uri          = uri.c_str();
+        config.client_id    = tk->hostname.c_str();
+        client = esp_mqtt_client_init(&config);
         esp_mqtt_client_start(client);
 
     }

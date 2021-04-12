@@ -8,7 +8,9 @@
 #include "esp_wifi.h"
 #include <tcpip_adapter.h>
 
-#define EVT_NET_PREFIX "net:"
+#include "tasks/Telnet/Telnet.h"
+
+#define TAG "network"
 
 /**
  * @brief   Network
@@ -26,6 +28,7 @@ class Network{
 
         //Global
         Network(EspToolkit*);
+        Telnet*  telnet;
         void    commit();
         static esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
         char*   getApIpStr(char* buf);

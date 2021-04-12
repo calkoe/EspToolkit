@@ -16,6 +16,8 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
+#define TAG                 "toolkit"
+
 //  Definitions
 #define SHORT               128   
 #define LONG                128     
@@ -27,7 +29,6 @@
 
 // Events
 #define EVT_TK_THREAD       0
-#define EVT_TK_PREFIX       "tk:"
 #define EVT_TK_BROADCAST    "tk:broadcast"
 #define EVT_TK_COMMAND      "tk:command"
 

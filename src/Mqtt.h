@@ -30,8 +30,9 @@ class Mqtt{
         esp_mqtt_error_codes_t lastError{};
 
         //CONFIG
-        bool          enable{true};
-        std::string   uri{"mqtt://test.mosquitto.org:1883"};
+        bool                        enable{true};
+        esp_mqtt_client_config_t    config{};
+        std::string uri{"mqtt://test.mosquitto.org:1883"};
 
 };
 

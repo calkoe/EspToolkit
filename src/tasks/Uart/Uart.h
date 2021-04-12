@@ -9,6 +9,7 @@
 #include "../../include/LineIn.h"
 #include "../../include/PostOffice.h"
 
+#define TAG "uart"
 #define EVT_UART_THREAD 1
 
 /**
@@ -33,6 +34,7 @@ class Uart{
 
         Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
         
+        void    print(char* text);
         void    lock();
         void    unlock();
         void    setPassword(char* password);

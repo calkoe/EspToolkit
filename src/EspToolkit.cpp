@@ -52,7 +52,7 @@ EspToolkit::EspToolkit(){
     button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,5000,(char*)"bootbutton5000ms");
     events.on(EVT_TK_THREAD,"bootbutton5000ms",[](void* ctx, void* arg){
         if(!*(bool*)arg){
-            ESP_LOGE(EVT_TK_PREFIX, "BUTTON RESET");
+            ESP_LOGE(TAG, "BUTTON RESET");
             variableLoad(false,true);
             esp_restart();
         }
@@ -328,14 +328,14 @@ void EspToolkit::variableLoad(bool save, bool reset){
     if(!isBegin) isBegin = true;
     AOS_VAR* i{aos_var};
     // Open NVS
-    ESP_LOGI(EVT_TK_PREFIX,"Opening Non-Volatile Storage (NVS) handle... ");
+    ESP_LOGI(TAG,"Opening Non-Volatile Storage (NVS) handle... ");
     nvs_handle my_handle;
     esp_err_t ret;
     ret = nvs_open("tkstorage", NVS_READWRITE, &my_handle);
     if (ret != ESP_OK) {
-        ESP_LOGE(EVT_TK_PREFIX,"Opening Non-Volatile Storage (NVS) handle... ",esp_err_to_name(ret));
+        ESP_LOGE(TAG,"Opening Non-Volatile Storage (NVS) handle... ",esp_err_to_name(ret));
     } else {
-        ESP_LOGI(EVT_TK_PREFIX,"Opening Non-Volatile Storage (NVS) Done!");
+        ESP_LOGI(TAG,"Opening Non-Volatile Storage (NVS) Done!");
     }
     if(reset){
         nvs_erase_all(my_handle);

@@ -4,7 +4,11 @@
 
 Network::Network(EspToolkit* tk):tk{tk}{
 
+    // TCPIP
     tcpip_adapter_init();
+
+    // TELNET
+    this->telnet = new Telnet(&(this->tk->events),(char*)EVT_TK_COMMAND,(char*)EVT_TK_BROADCAST);
 
     // BUTTON TOGGLE AP
     tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
@@ -12,7 +16,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         Network*    network = (Network*) ctx;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         if(!*(bool*)arg){
-            ESP_LOGE(EVT_NET_PREFIX, "TOGGLE AP");
+            ESP_LOGE(TAG, "TOGGLE AP");
             network->ap_enable = !network->ap_enable;
             tk->variableLoad(true);
             esp_restart();
@@ -214,32 +218,32 @@ esp_err_t Network::wifi_event_handler(void *ctx, system_event_t *event)
     Network* _this = (Network*)ctx;
     switch (event->event_id) {
         case SYSTEM_EVENT_STA_START:
-            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_START");
+            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_START");
             _this->tk->events.emit("SYSTEM_EVENT_STA_START");
             esp_wifi_connect();
             break;
         case SYSTEM_EVENT_STA_CONNECTED:
-            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_CONNECTED");
+            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_CONNECTED");
             _this->tk->events.emit("SYSTEM_EVENT_STA_CONNECTED");
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
-            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_GOT_IP");
+            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_GOT_IP");
             _this->tk->events.emit("SYSTEM_EVENT_STA_GOT_IP");
             _this->tk->status[STATUS_BIT_NETWORK] = true;
             break;
         case SYSTEM_EVENT_STA_LOST_IP:
-            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_LOST_IP");
+            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_LOST_IP");
             _this->tk->events.emit("SYSTEM_EVENT_STA_LOST_IP");
             if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
-            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_DISCONNECTED");
+            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_DISCONNECTED");
             _this->tk->events.emit("SYSTEM_EVENT_STA_DISCONNECTED");
             if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             esp_wifi_connect();
             break;
         case SYSTEM_EVENT_STA_STOP:
-            ESP_LOGI(EVT_NET_PREFIX, "SYSTEM_EVENT_STA_STOP");
+            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_STOP");
             _this->tk->events.emit("SYSTEM_EVENT_STA_STOP");
             if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
