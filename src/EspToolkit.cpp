@@ -471,7 +471,7 @@ void EspToolkit::commandAddDefault(){
         snprintf(OUT,LONG,"%-30s : %s %s","COMPILED",date.c_str(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes FREE %s","HEAP",esp_get_free_heap_size(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes MIN FREE %s","HEAP",esp_get_minimum_free_heap_size(),EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %f Stunden %s","UPTIME",(double)esp_timer_get_time()/1000.0/1000.0/60.0/60.0,EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %f Hours %s","UPTIME",(double)esp_timer_get_time()/1000.0/1000.0/60.0/60.0,EOL);reply(OUT);
     },NULL,"🖥");
 
     commandAdd("tasks", [](void* c, void (*reply)(char*), char** param,uint8_t parCnt){

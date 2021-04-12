@@ -39,6 +39,7 @@ class Network{
         std::string sta_subnet{"0.0.0.0"};
         std::string sta_gateway{"0.0.0.0"};
         std::string sta_dns{"0.0.0.0"};
+        bool        sta_modenSleep{true};
         bool        ap_enable{false};
         std::string ap_password{""};
     

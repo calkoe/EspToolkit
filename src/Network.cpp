@@ -65,6 +65,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %s %s","Hostname",tk->hostname.c_str(),tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s %s","LocalMAC",WiFi.macAddress().c_str(),tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s %s","BSSID",WiFi.BSSIDstr().c_str(),tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d %s","Channel",WiFi.channel(),tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","LocalIP",localIP[0],localIP[1],localIP[2],localIP[3],tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","SubnetMask",subnetMask[0],subnetMask[1],subnetMask[2],subnetMask[3],tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","GatewayIP",gatewayIP[0],gatewayIP[1],gatewayIP[2],gatewayIP[3],tk->EOL);reply(OUT);
@@ -178,7 +179,7 @@ void Network::commit(){
     WiFi.persistent(false); 
     WiFi.mode(WIFI_STA);
     WiFi.setHostname((const char*)tk->hostname.c_str()); 
-    WiFi.setSleep(true);
+    WiFi.setSleep(sta_modenSleep);
     WiFi.setTxPower(WIFI_POWER_19_5dBm);
     WiFi.mode(WIFI_OFF);
 
