@@ -10,7 +10,6 @@
 #include "../../include/PostOffice.h"
 
 #define TAG "uart"
-#define EVT_UART_THREAD 1
 
 /**
  * @brief   Uart communication
@@ -33,10 +32,6 @@ class Uart{
     public:
 
         Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
-        
-        void    print(char* text);
-        void    lock();
-        void    unlock();
-        void    setPassword(char* password);
+        static void print(char* text);
 
 };

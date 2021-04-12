@@ -24,12 +24,12 @@ void setup()
     initDisplay();
 
     // Send and Receive MQTT Messages
-    tk.events.on(EVT_TK_THREAD,"MQTT_EVENT_CONNECTED",[](void* ctx, void* arg){
+    tk.events.on(0,"MQTT_EVENT_CONNECTED",[](void* ctx, void* arg){
         mqtt.subscribe((char*)"demo1");
         mqtt.publish((char*)"demo2",(char*)"HALLO 1234",0,0);
     });
 
-    tk.events.on(EVT_TK_THREAD,"demo1",[](void* ctx, void* arg){
+    tk.events.on(0,"demo1",[](void* ctx, void* arg){
         std::cout << "[demo1] Received Message: " << (char*)arg << std::endl;
         mqtt.publish((char*)"demo3",(char*)arg);
     });
@@ -51,35 +51,35 @@ void initDisplay(){
 	ssd1306_contrast(&dev, 0xff);
 	ssd1306_clear_line(&dev, 0, true);
 	ssd1306_display_text(&dev, 0, "EspToolkit 0.1", 14, true);
-    tk.events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_DISCONNECTED",[](void*, void*){
+    tk.events.on(0,"SYSTEM_EVENT_STA_DISCONNECTED",[](void*, void*){
         ssd1306_clear_line(&dev, 1, true);
 	    ssd1306_display_text(&dev, 1, (char*)"WIFI Disconnected", 17, true);
     });
-    tk.events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_START",[](void*, void*){
+    tk.events.on(0,"SYSTEM_EVENT_STA_START",[](void*, void*){
         ssd1306_clear_line(&dev, 1, true);
 	    ssd1306_display_text(&dev, 1, (char*)"WIFI Connecting", 15, true);
     });
-    tk.events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_CONNECTED",[](void*, void*){
+    tk.events.on(0,"SYSTEM_EVENT_STA_CONNECTED",[](void*, void*){
         ssd1306_clear_line(&dev, 1, false);
 	    ssd1306_display_text(&dev, 1, (char*)"WIFI Connected", 14, false);
     });
-    tk.events.on(EVT_TK_THREAD,"MQTT_EVENT_DISCONNECTED",[](void*, void*){
+    tk.events.on(0,"MQTT_EVENT_DISCONNECTED",[](void*, void*){
         ssd1306_clear_line(&dev, 2, true);
 	    ssd1306_display_text(&dev, 2, (char*)"MQTT Disconnected", 17, true);
     });
-    tk.events.on(EVT_TK_THREAD,"MQTT_EVENT_BEFORE_CONNECT",[](void*, void*){
+    tk.events.on(0,"MQTT_EVENT_BEFORE_CONNECT",[](void*, void*){
         ssd1306_clear_line(&dev, 2, true);
 	    ssd1306_display_text(&dev, 2, (char*)"MQTT Connecting", 15, true);
     });
-    tk.events.on(EVT_TK_THREAD,"MQTT_EVENT_CONNECTED",[](void*, void*){
+    tk.events.on(0,"MQTT_EVENT_CONNECTED",[](void*, void*){
         ssd1306_clear_line(&dev, 2, false);
 	    ssd1306_display_text(&dev, 2, (char*)"MQTT Connected", 14, false);
     });
-    tk.events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_LOST_IP",[](void*, void*){
+    tk.events.on(0,"SYSTEM_EVENT_STA_LOST_IP",[](void*, void*){
         ssd1306_clear_line(&dev, 3, true);
 	    ssd1306_display_text(&dev, 3, (char*)"IP Lost", 7, true);
     });
-    tk.events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_GOT_IP",[](void*, void*){
+    tk.events.on(0,"SYSTEM_EVENT_STA_GOT_IP",[](void*, void*){
         ssd1306_clear_line(&dev, 3, false);
         char buf[16]{0};net.getStaIpStr(buf);
 	    ssd1306_display_text(&dev, 3, buf, 15, false);     

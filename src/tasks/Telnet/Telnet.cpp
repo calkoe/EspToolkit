@@ -2,7 +2,14 @@
 
 #include "Telnet.h"
 
+int Telnet::clientSock{-1};
+
 Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic):events{events},commandTopic{commandTopic}{
+
+     // EVT_TK_BROADCAST -> SERIAL
+    events->on(0,broadcastTopic,[](void* ctx, void* arg){
+        print((char*)arg);
+    },NULL);
 
     // TASK
     xTaskCreate([](void* ctx){
@@ -39,42 +46,54 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
         while (1) {
             // Listen for a new client connection.
             socklen_t clientAddressLength = sizeof(clientAddress);
-            int clientSock = accept(sock, (struct sockaddr *)&clientAddress, &clientAddressLength);
+            clientSock = accept(sock, (struct sockaddr *)&clientAddress, &clientAddressLength);
             if (clientSock < 0) {
                 ESP_LOGE(TAG, "accept: %d %s", clientSock, strerror(errno));
-                vTaskDelete(NULL);
+                continue;
             }
 
-            // We now have a new client ...
-            int total =	10*1024;
-            int sizeUsed = 0;
-            char *data = (char*) malloc(total);
+            // We now have a new client ... lets say hello!
+            void* buffer = malloc(BUFFER_SIZE);
+            simple_cmd_t simple_cmd;
+            simple_cmd.payload = "help";
+            simple_cmd.reply   = print;
+            _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
 
             // Loop reading data.
             while(1) {
-                ssize_t sizeRead = recv(clientSock, data + sizeUsed, total-sizeUsed, 0);
+                static bool first{true};
+                memset(buffer, '\0', BUFFER_SIZE);
+                ssize_t sizeRead = recv(clientSock, buffer, BUFFER_SIZE, 0);
                 if (sizeRead < 0) {
                     ESP_LOGE(TAG, "recv: %d %s", sizeRead, strerror(errno));
-                    vTaskDelete(NULL);
+                    break;
                 }
                 if (sizeRead == 0) {
                     break;
                 }
-                sizeUsed += sizeRead;
+                if(first){
+                    first = false;
+                    continue;
+                }
+                simple_cmd_t simple_cmd;
+                simple_cmd.payload = (char*)buffer;
+                simple_cmd.reply   = print;
+                _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
+                vTaskDelay(10);
             }
-
-            // Finished reading data.
-            ESP_LOGD(TAG, "Data read (size: %d) was: %.*s", sizeUsed, sizeUsed, data);
-            free(data);
+            free(buffer);
             close(clientSock);
+            clientSock = -1;
         }
 
 
-
-    }, "telnet", 2048, this, 1, NULL);
-    
-
+    }, "telnet", 2048, this, 0, NULL);
     
 }
+
+void Telnet::print(char* text){
+    send(clientSock, text, strlen(text), 0);
+} 
+
 
 #endif

@@ -45,18 +45,18 @@ void setup()
     net.commit();
 
     // Send and Receive MQTT Messages
-    tk.events.on(EVT_TK_THREAD,"MQTT_EVENT_CONNECTED",[](void* ctx, void* arg){
+    tk.events.on(0,"MQTT_EVENT_CONNECTED",[](void* ctx, void* arg){
         mqtt.subscribe((char*)"demo1");
         mqtt.publish((char*)"demo2",(char*)"HALLO 1234",0,0);
     });
 
-    tk.events.on(EVT_TK_THREAD,"demo1",[](void* ctx, void* arg){
+    tk.events.on(0,"demo1",[](void* ctx, void* arg){
         std::cout << "[demo1] Received Message: " << (char*)arg << std::endl;
         mqtt.publish((char*)"demo3",(char*)arg);
     });
 
     // Example: Send and receive custom structs via events as void* 
-    tk.events.on(EVT_TK_THREAD,"MEINETOPIC",[](void* ctx, void* arg){
+    tk.events.on(0,"MEINETOPIC",[](void* ctx, void* arg){
         myStruct_t m = *(myStruct_t*)arg;
         std::cout << "str: " << m.str << std::endl;
         std::cout << "ca: "  << m.ca  << std::endl;
@@ -75,7 +75,7 @@ void setup()
 
     // Listen to GPIO Events
     tk.button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,100,(char*)"bootbutton100ms");
-    tk.events.on(EVT_TK_THREAD,"bootbutton100ms",[](void* ctx, void* arg){
+    tk.events.on(0,"bootbutton100ms",[](void* ctx, void* arg){
         if(!*(bool*)arg){
             mqtt.publish((char*)"button",(char*)"PRESSED",0,0);
         }else{

@@ -40,7 +40,7 @@ class Button{
          * @param taskPrio  RTOS task PRIO
          * @param taskDelay for each loop in Ticks
         */
-        Button(PostOffice<std::string>* events, int taskStack = 4096, uint8_t taskPrio = 1, TickType_t taskDelay = 10);
+        Button(PostOffice<std::string>* events, int taskStack = 4096, uint8_t taskPrio = 10, TickType_t taskDelay = 10);
 
         /**
          * @brief Start observing a GPIO

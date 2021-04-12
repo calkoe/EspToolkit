@@ -8,11 +8,13 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tcpip_adapter_init();
 
     // TELNET
-    this->telnet = new Telnet(&(this->tk->events),(char*)EVT_TK_COMMAND,(char*)EVT_TK_BROADCAST);
+    if(telnet_enable){
+        telnet = new Telnet(&(this->tk->events),(char*)EVT_TK_COMMAND,(char*)EVT_TK_BROADCAST);
+    }
 
     // BUTTON TOGGLE AP
     tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
-    tk->events.on(EVT_TK_THREAD,"bootbutton1000ms",[](void* ctx, void* arg){
+    tk->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
         Network*    network = (Network*) ctx;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         if(!*(bool*)arg){
@@ -30,8 +32,10 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("wifi/subnet",       sta_subnet,        "📶 Subnet");
     tk->variableAdd("wifi/gateway",      sta_gateway,       "📶 Gateway");
     tk->variableAdd("wifi/dns",          sta_dns,           "📶 DNS");
+    tk->variableAdd("wifi/sleep",        sta_modenSleep,    "📶 Enable modem sleep to save energy");
     tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot-Mode");
     tk->variableAdd("hotspot/password",  ap_password,       "📶 Hotspot Password");
+    tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
     
     tk->commandAdd("wifiStatus",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         Network*    network = (Network*) c;
@@ -77,6 +81,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %s %s","AP MAC",WiFi.softAPmacAddress().c_str(),tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","AP IP",apIP[0],apIP[1],apIP[2],apIP[3],tk->EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d %s","AP Stations",WiFi.softAPgetStationNum(),tk->EOL);reply(OUT);
+        if(network->telnet) snprintf(OUT,LONG,"%-30s : %s %s","Telnet connected",network->telnet->clientSock > 0 ? "true" : "false",tk->EOL);reply(OUT);
     },this,  "📶 Shows System / Wifi status");
     
 
@@ -114,7 +119,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         }
     },this,"📶 [url] | load and install new firmware from URL (http or https)");
 
-    tk->commandAdd("wifiScan",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
+    /*tk->commandAdd("wifiScan",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
@@ -137,7 +142,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
                 snprintf(OUT,LONG,"%-30s : %d dBm (%d%%) (%s) BSSID: %s %s",WiFi.SSID(i).c_str(),WiFi.RSSI(i), network->calcRSSI(WiFi.RSSI(i)),e,WiFi.BSSIDstr(i).c_str(),tk->EOL);reply(OUT);
             }
         }else reply((char*)"❌ No Networks found!");
-    },this,    "📶 Scans for nearby networks");
+    },this,    "📶 Scans for nearby networks");*/
 
     tk->commandAdd("wifiCommit",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         char OUT[LONG];

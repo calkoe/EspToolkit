@@ -28,7 +28,6 @@
 #define EEPROM_SIZE         1024  
 
 // Events
-#define EVT_TK_THREAD       0
 #define EVT_TK_BROADCAST    "tk:broadcast"
 #define EVT_TK_COMMAND      "tk:command"
 
@@ -96,6 +95,7 @@ class EspToolkit{
         static std::string      date;
         static std::string      hostname;
         static std::string      password;
+        static bool             locked;
         static std::string      firmware;
 
         //API Commands

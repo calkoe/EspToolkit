@@ -18,7 +18,8 @@ int                     EspToolkit::watchdog{10};
 std::string             EspToolkit::date{__DATE__ " " __TIME__};
 std::string             EspToolkit::hostname{"EspToolkit"};
 std::string             EspToolkit::password{"tk"};
-std::string             EspToolkit::firmware{"-"};
+bool                    EspToolkit::locked{false};
+std::string             EspToolkit::firmware{"EspToolkit Generic"};
 
 EspToolkit::EspToolkit(){
 
@@ -43,14 +44,14 @@ EspToolkit::EspToolkit(){
                     gpio_set_level((gpio_num_t)STATUSLED,!STATUSLEDON);
                     vTaskDelay(150);
                 }
-                vTaskDelay(1000);
+                vTaskDelay(2000);
             }
         }, "statusled", 2048, this, 1, NULL);
     }
     
     // BUTTON RESET
     button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,5000,(char*)"bootbutton5000ms");
-    events.on(EVT_TK_THREAD,"bootbutton5000ms",[](void* ctx, void* arg){
+    events.on(0,"bootbutton5000ms",[](void* ctx, void* arg){
         if(!*(bool*)arg){
             ESP_LOGE(TAG, "BUTTON RESET");
             variableLoad(false,true);
@@ -59,13 +60,14 @@ EspToolkit::EspToolkit(){
     },this);
 
     // Command Parser
-    events.on(EVT_TK_THREAD,EVT_TK_COMMAND,[](void* ctx, void* arg){
+    events.on(0,EVT_TK_COMMAND,[](void* ctx, void* arg){
         EspToolkit* _this = (EspToolkit*) arg;
         struct simple_cmd_t{
             char* payload;
             void  (*reply)(char* str);
         };
         simple_cmd_t simple_cmd = *(simple_cmd_t*) arg;
+        //printf("Command Parser got: %s %s",simple_cmd.payload,EOL);
         _this->commandParseAndCall(simple_cmd.payload,simple_cmd.reply);
     },this);
 
@@ -114,10 +116,6 @@ void EspToolkit::begin(){
         esp_task_wdt_add(NULL); 
     }
 
-    // Setup Shell
-    uart.setPassword((char*)password.c_str());
-
-
     //Sys Status
     status[STATUS_BIT_SYSTEM] = true;
 
@@ -126,7 +124,7 @@ void EspToolkit::begin(){
 void EspToolkit::loop(){
     if(watchdog) esp_task_wdt_reset(); 
     timer.loop();
-    events.loop(EVT_TK_THREAD);
+    events.loop(0);
 };
 
 /**
@@ -211,8 +209,25 @@ void EspToolkit::commandMan(const char* name, void (*reply)(char*)){
  * @param paramCnt Parameter count
 */
 bool EspToolkit::commandCall(const char* name,void (*reply)(char*), char** param, uint8_t parCnt){
+
+    // Locking Meschanism
+    if(locked){
+        if(!strncmp(name,password.c_str(),SHORT)){
+            locked=false;
+            reply("SYSTEM UNLOCKED!");reply(EOL);
+        }else{
+            reply("SYSTEM LOCKED! Type Password");reply(EOL);
+            vTaskDelay(1000);
+        }
+        return true;
+    }else if(!strncmp(name,"lock",SHORT)){
+        reply("SYSTEM LOCKED!");reply(EOL);
+        locked=true;
+        return true;
+    }
+
     AOS_CMD* i{aos_cmd};
-    while(i != nullptr){
+    while(!locked && i != nullptr){
         if(!strncmp(i->name,name,SHORT)){
             (*(i->function))(i->ctx, reply, param, parCnt);
             return true;
@@ -228,15 +243,15 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(char*), char** param
  *
 */
 void EspToolkit::commandParseAndCall(char* ca, void (*reply)(char*)){
-    uint8_t          parCnt{0};
+    uint8_t     parCnt{0};
     char*       param[SHORT]{NULL};
     char        search{' '};
     unsigned    s{0};
     for(unsigned i{0};i<strlen(ca);i++){
-        if(ca[i] == 0) break;
-        while((ca[i] == '"' || ca[i] == ' ') && ca[i] != 0) search = ca[i++];
+        if(ca[i] == '\0' || ca[i] == '\r' || ca[i] == '\n') break;
+        while((ca[i] == '"' || ca[i] == ' ') && ca[i] != '\0' && ca[i] != '\r' && ca[i] != '\n') search = ca[i++];
         s = i;
-        while(ca[i] != search && ca[i] != 0) i++;
+        while(ca[i] != search && ca[i] != '\0' && ca[i] != '\r' && ca[i] != '\n') i++;
         char* buffer = (char*)malloc(i-s+1);
         for(unsigned j{0};j<(i-s);j++) buffer[j] = ca[s+j];
         buffer[i-s] = 0;param[parCnt++] = buffer;

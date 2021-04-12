@@ -45,6 +45,7 @@ class Network{
         bool        sta_modenSleep{true};
         bool        ap_enable{false};
         std::string ap_password{""};
+        bool        telnet_enable{true};
     
 };
 

@@ -24,8 +24,6 @@ class LineIn{
         void*           onLineArg;
         enum ESC_T      { ESC_STATE_NONE, ESC_STATE_START, ESC_STATE_CODE} inEsc {ESC_STATE_NONE};
         char            lc;
-        bool            locked{false};
-        char*           password = "tk";
 
     public:
 
@@ -40,9 +38,6 @@ class LineIn{
         void    clear();
         void    printClear();
 
-        void    lock();
-        void    unlock();
-        void    setPassword(char* password);
 };
 
 template <unsigned BUFFER_SIZE>
@@ -76,29 +71,19 @@ void LineIn<BUFFER_SIZE>::in(char c){
     if(esc(c)) return;                                             //Filter ESC 
     if(c != 13 && c != 10 && c != 8 && c != 127){                  //No Echo on CR or NL or Backspace or DEL
         char ca[]{c,0};
-        if(!locked) onEcho(ca,onEchoArg);
+        onEcho(ca,onEchoArg);
     }                  
     if(c == 8 || c == 127){                                        //BACKSPACE or DEL
         if(IOP[IOC] > 0){
             IO[IOC][--IOP[IOC]] = 0;
-            if(!locked) onEcho((char*)"\b \b",onEchoArg);
+            onEcho((char*)"\b \b",onEchoArg);
         }
-    }else if(c != 13 && c != 10 && IOP[IOC] < BUFFER_SIZE-1){     //CR NL
+    }else if(c != 13 && c != 10 && IOP[IOC] < BUFFER_SIZE-1){      //CR NL
         IO[IOC][IOP[IOC]++] = c;                    
-    }else if((lc != 13 && lc != 10) && c == 10){                  //CR NL 
+    }else if((lc != 13 && lc != 10) && c == 10){                   //CR NL 
         onEcho((char*)"\r\n",onEchoArg);     
-        if(!std::strcmp(IO[IOC],password)){
-            locked = false;
-            printClear();
-        }else{
-            if(!std::strcmp(IO[IOC],"lock"))  locked = true;
-            if(locked){
-                printClear();
-            }else{
-                onLine(IO[IOC],onLineArg);
-            }       
-            IOC = !IOC;
-        }
+        onLine(IO[IOC],onLineArg);
+        IOC = !IOC;
         clear();
     }
     lc=c;
@@ -149,26 +134,5 @@ void LineIn<BUFFER_SIZE>::printClear(){
     for(unsigned i{0};i<BUFFER_SIZE-1;i++) OUT[i] = 32;
     onEcho(OUT,onEchoArg);
     onEcho((char*)"\r",onEchoArg);
-    if(locked){
-        onEcho((char*)"##### LOCKED #####\r\nPlease enter Password: ",onEchoArg);  
-    }else{
-        onEcho((char*)"ESPToolkit:/>",onEchoArg);
-    }
+    onEcho((char*)"ESPToolkit:/>",onEchoArg);
 }
-
-template <unsigned BUFFER_SIZE>
-void LineIn<BUFFER_SIZE>::lock(){
-    locked = true;
-    printClear();
-}
-
-template <unsigned BUFFER_SIZE>
-void LineIn<BUFFER_SIZE>::unlock(){
-    locked = false;
-    printClear();
-}
-
-template <unsigned BUFFER_SIZE>
-void LineIn<BUFFER_SIZE>::setPassword(char* password){
-    this->password = password;
-};

@@ -5,7 +5,7 @@
 Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
 
     // Commit on WiFi Connected
-    tk->events.on(EVT_TK_THREAD,"SYSTEM_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
+    tk->events.on(0,"SYSTEM_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
         Mqtt* _this = (Mqtt*)ctx;
         _this->commit();
     },this);
@@ -70,26 +70,21 @@ void Mqtt::commit(){
 
     tk->status[STATUS_BIT_MQTT] = true;
 
-    //Beginn Session
+    //Begin Session
     if(enable){
-        
         tk->status[STATUS_BIT_MQTT] = false;
-
         config.event_handle = &mqtt_event_handler; 
         config.user_context = this;  
         config.uri          = uri.c_str();
         config.client_id    = tk->hostname.c_str();
         client = esp_mqtt_client_init(&config);
         esp_mqtt_client_start(client);
-
     }
 
 }
 
 esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
-    //esp_mqtt_client_handle_t client = event->client;
-    Mqtt* _this                     = (Mqtt*)event->user_context;
-    //int msg_id = event->msg_id;
+    Mqtt* _this = (Mqtt*)event->user_context;
     switch (event->event_id) {
         case MQTT_EVENT_BEFORE_CONNECT:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_BEFORE_CONNECT");

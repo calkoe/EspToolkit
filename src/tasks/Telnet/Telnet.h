@@ -11,11 +11,10 @@
 #include <errno.h>
 #include "sdkconfig.h"
 
-#include "../../include/LineIn.h"
 #include "../../include/PostOffice.h"
 
 #define TAG "telnet"
-#define EVT_TELNET_THREAD 2
+#define BUFFER_SIZE 128
 
 /**
  * @brief   Telnet communication
@@ -26,7 +25,6 @@ class Telnet{
 
     private:
         PostOffice<std::string>* events;
-        LineIn<128> lineIn;
         char* commandTopic;
         char* broadcastTopic;
         struct simple_cmd_t{
@@ -35,13 +33,10 @@ class Telnet{
         };
 
 
+
     public:
 
         Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
-        
-        void    print(char* text);
-        void    lock();
-        void    unlock();
-        void    setPassword(char* password);
-
+        static int clientSock;
+        static void print(char* text);
 };

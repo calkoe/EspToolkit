@@ -20,10 +20,10 @@ class SyncTimer{
                 void                (*function)(void*);
                 void*               ctx;              
                 int64_t             timestamp;
-                uint16_t                 interval;
+                uint32_t            interval;
                 const char*         description;  
-                uint16_t                 time;  
-                uint16_t                 timeMax;  
+                uint16_t            time;  
+                uint16_t            timeMax;  
                 bool                repeat;
                 AOS_TASK*           aos_task;
             };
@@ -74,7 +74,7 @@ inline uint16_t SyncTimer::setInterval(void(*f)(void*),void* a,uint16_t i,const 
 inline uint16_t SyncTimer::setTimeout(void(*f)(void*),void* ctx,uint16_t i, const char* description, bool repeat){
     lock();
     static uint16_t idSerial{1};
-    AOS_TASK* e = new AOS_TASK{idSerial,f,ctx,esp_timer_get_time(),(uint16_t)(i*1000),description,0,0,repeat,nullptr};
+    AOS_TASK* e = new AOS_TASK{idSerial,f,ctx,esp_timer_get_time(),(uint32_t)(i*1000),description,0,0,repeat,nullptr};
     if(!aos_task){
         aos_task = e;
     }else{
