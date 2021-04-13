@@ -11,9 +11,10 @@ Uart::Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastT
 
     lineIn.setOnLine([](char* str, void* ctx){
         Uart* _this = (Uart*) ctx;
-        simple_cmd_t simple_cmd;
-        simple_cmd.payload = str;
-        simple_cmd.reply   = print;
+        simple_cmd_t simple_cmd{
+            strdup(str), 
+            print
+        };
         _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
     },this);
 
@@ -28,9 +29,10 @@ Uart::Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastT
         uint8_t c;
 
         // Say Hello!
-        simple_cmd_t simple_cmd;
-        simple_cmd.payload = "help";
-        simple_cmd.reply   = print;
+        simple_cmd_t simple_cmd{
+            strdup("help"), 
+            print
+        };
         _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
 
         while(true){

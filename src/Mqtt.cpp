@@ -26,7 +26,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         tk->variableLoad(true);
         mqtt->commit();
         reply((char*)"DONE! ✅ > Type 'mqttStatus' to check status");
-        reply(tk->EOL);
+        reply((char*)tk->EOL);
     }, this, "📡 [mqtt/uri] | Apply mqtt settings and connect to configured mqtt server",false);
 
     tk->commandAdd("mqttPublish",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
@@ -35,7 +35,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         if(parCnt>=3){
             mqtt->publish(param[1],param[2]);
             reply((char*)"📨 sent!");
-            reply(tk->EOL);
+            reply((char*)tk->EOL);
         };
     },this,"📡 [topic] [message] | publish a message to topic",false);
 
@@ -146,11 +146,14 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
 
 int Mqtt::publish(char* topic, char* message, int qos, int retain){
     if(!client) return -1;
+    if(qos < 0 || qos > 2) return -1;
+    if(retain < 0 || retain > 1) return -1;
     return esp_mqtt_client_publish(client, topic, message, strlen(message), qos, retain);
 };
 
 int Mqtt::subscribe(char* topic, int qos){
     if(!client) return -1;
+    if(qos < 0 || qos > 2) return -1;
     return esp_mqtt_client_subscribe(client, topic, qos);
 };
 

@@ -35,11 +35,11 @@ class SyncTimer{
 
         public:
 
-            char*            EOL{(char*)"\r\n"};
+            const char*            EOL{"\r\n"};
 
             SyncTimer();
-            uint16_t              setInterval(void(*)(void* ctx),void* ctx,uint16_t intervall,const char* name = "");
-            uint16_t              setTimeout(void(*)(void* ctx),void* ctx,uint16_t timeout,const char* name = "",bool = false);
+            uint16_t         setInterval(void(*)(void* ctx),void* ctx,uint16_t intervall,const char* name = "");
+            uint16_t         setTimeout(void(*)(void* ctx),void* ctx,uint16_t timeout,const char* name = "",bool = false);
             AOS_TASK*        unsetInterval(uint16_t id);
             void             loop();
             void             printTasks(void (*reply)(char*));
@@ -72,9 +72,10 @@ inline uint16_t SyncTimer::setInterval(void(*f)(void*),void* a,uint16_t i,const 
  * @return timeout Id
 */
 inline uint16_t SyncTimer::setTimeout(void(*f)(void*),void* ctx,uint16_t i, const char* description, bool repeat){
+    if(i <= 0) return 0;
     lock();
     static uint16_t idSerial{1};
-    AOS_TASK* e = new AOS_TASK{idSerial,f,ctx,esp_timer_get_time(),(uint32_t)(i*1000),description,0,0,repeat,nullptr};
+    AOS_TASK* e = new AOS_TASK{idSerial,f,ctx,esp_timer_get_time(),(i*(uint32_t)1000),description,0,0,repeat,nullptr};
     if(!aos_task){
         aos_task = e;
     }else{
@@ -129,7 +130,7 @@ inline void SyncTimer::loop(){
                 taskYIELD();
             lock();
             int64_t t2 = esp_timer_get_time();
-            i->time = (int64_t)(t1 - t1);
+            i->time = (int64_t)(t2 - t1);
             if(i->time>i->timeMax) i->timeMax = i->time; 
             i->timestamp = t2;
             i = !i->repeat ? unsetInterval(i->id) : i->aos_task;
@@ -143,7 +144,7 @@ inline void SyncTimer::loop(){
 */
 inline void SyncTimer::printTasks(void (*reply)(char*)){
     reply((char*)"Tasks: \r\n");
-    reply(EOL);
+    reply((char*)EOL);
     AOS_TASK* i{aos_task};
     while(i){
         char OUT[128];

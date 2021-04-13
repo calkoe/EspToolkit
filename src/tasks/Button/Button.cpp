@@ -15,7 +15,7 @@ Button::Button(PostOffice<std::string>* events, int taskStack, uint8_t taskPrio,
             gpio_num_t          gpio;
             gpio_pull_mode_t    pullmode;
             unsigned            wait;
-            char*               topic;
+            const char*         topic;
             int                 status;
             int64_t             statusTimestamp;
         };
@@ -70,7 +70,7 @@ Button::Button(PostOffice<std::string>* events, int taskStack, uint8_t taskPrio,
     
 }
 
-void Button::add(gpio_num_t gpio, gpio_pull_mode_t pullmode, unsigned wait, char* topic){
+void Button::add(gpio_num_t gpio, gpio_pull_mode_t pullmode, unsigned wait, const char* topic){
     add_t add{gpio,pullmode,wait,topic};
     xQueueSend(add_queue, (void*)&add, portMAX_DELAY);
 };

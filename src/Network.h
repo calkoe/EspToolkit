@@ -29,10 +29,10 @@ class Network{
         //Global
         Network(EspToolkit*);
         Telnet*  telnet;
-        void    commit();
-        static esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
-        char*   getApIpStr(char* buf);
-        char*   getStaIpStr(char* buf);
+        void     commit();
+        static   esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
+        void     getApIpStr(char* buf);
+        void     getStaIpStr(char* buf);
 
         //CONFIG
         bool        sta_enable{false};

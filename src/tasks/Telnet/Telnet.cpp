@@ -54,9 +54,10 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
 
             // We now have a new client ... lets say hello!
             void* buffer = malloc(BUFFER_SIZE);
-            simple_cmd_t simple_cmd;
-            simple_cmd.payload = "help";
-            simple_cmd.reply   = print;
+            simple_cmd_t simple_cmd{
+                strdup("help"), 
+                print
+            };
             _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
 
             // Loop reading data.
@@ -75,9 +76,10 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
                     first = false;
                     continue;
                 }
-                simple_cmd_t simple_cmd;
-                simple_cmd.payload = (char*)buffer;
-                simple_cmd.reply   = print;
+                simple_cmd_t simple_cmd{
+                    strdup((char*)buffer), 
+                    print
+                };
                 _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
                 vTaskDelay(10);
             }

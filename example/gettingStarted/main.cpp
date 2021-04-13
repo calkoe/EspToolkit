@@ -34,7 +34,7 @@ void setup()
         if(parCnt>=3){
             mqtt.publish(param[1],param[2]);
             reply((char*)"📨 sent!");
-            reply(tk.EOL);
+            reply((char*)tk.EOL);
         };
     },NULL,"📡 [topic] [message] | publish a message to topic",false);
 

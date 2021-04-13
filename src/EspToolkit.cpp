@@ -7,13 +7,14 @@ PostOffice<std::string> EspToolkit::events(100);
 Uart                    EspToolkit::uart(&events,(char*)EVT_TK_COMMAND,(char*)EVT_TK_BROADCAST);
 SyncTimer               EspToolkit::timer;
 Button                  EspToolkit::button(&events);
-char*                   EspToolkit::EOL{(char*)"\r\n"};
+const char*             EspToolkit::EOL{"\r\n"};
 bool                    EspToolkit::isBegin{false};
 EspToolkit::AOS_CMD*    EspToolkit::aos_cmd{nullptr};
 EspToolkit::AOS_VAR*    EspToolkit::aos_var{nullptr};
 char                    EspToolkit::OUT[LONG]{0};
 bool                    EspToolkit::status[5]{true};
-int                     EspToolkit::logLevel{1};
+int                     EspToolkit::cpuFreq{2};
+int                     EspToolkit::logLevel{0};
 int                     EspToolkit::watchdog{10};
 std::string             EspToolkit::date{__DATE__ " " __TIME__};
 std::string             EspToolkit::hostname{"EspToolkit"};
@@ -69,6 +70,7 @@ EspToolkit::EspToolkit(){
         simple_cmd_t simple_cmd = *(simple_cmd_t*) arg;
         //printf("Command Parser got: %s %s",simple_cmd.payload,EOL);
         _this->commandParseAndCall(simple_cmd.payload,simple_cmd.reply);
+        free((void*)simple_cmd.payload);
     },this);
 
 
@@ -91,6 +93,22 @@ void EspToolkit::begin(){
     // Initialize Variables
     variableLoad();
 
+    // Initialize CPU
+    switch(cpuFreq){
+        case 0:
+            setCpuFrequencyMhz(80);
+            break;
+        case 1:
+            setCpuFrequencyMhz(160);
+            break;
+        case 2:
+            setCpuFrequencyMhz(240);
+            break;
+        default:
+            setCpuFrequencyMhz(240);
+            break;
+    }
+
     // Initialize Logging
     switch(logLevel){
         case 0:
@@ -107,6 +125,9 @@ void EspToolkit::begin(){
             break;
         case 4:
             esp_log_level_set("*", ESP_LOG_VERBOSE);
+            break;
+        default:
+            esp_log_level_set("*", ESP_LOG_ERROR);
             break;
     }
 
@@ -174,7 +195,7 @@ bool EspToolkit::commandAdd(const char* name,void (*function)(void*,void (*)(cha
 */
 void EspToolkit::commandList(const char* filter,void (*reply)(char*)){
     reply((char*)"Commands:");
-    reply(EOL);
+    reply((char*)EOL);
     AOS_CMD* i{aos_cmd};
     while(i != nullptr){
         if(!i->hidden && (!filter || strstr(i->name, filter))){
@@ -214,15 +235,17 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(char*), char** param
     if(locked){
         if(!strncmp(name,password.c_str(),SHORT)){
             locked=false;
-            reply("SYSTEM UNLOCKED!");reply(EOL);
+            reply("SYSTEM UNLOCKED!");reply((char*)EOL);
+            variableLoad(true);
         }else{
-            reply("SYSTEM LOCKED! Type Password");reply(EOL);
+            reply("SYSTEM LOCKED! Type Password");reply((char*)EOL);
             vTaskDelay(1000);
         }
         return true;
     }else if(!strncmp(name,"lock",SHORT)){
-        reply("SYSTEM LOCKED!");reply(EOL);
+        reply("SYSTEM LOCKED!");reply((char*)EOL);
         locked=true;
+        variableLoad(true);
         return true;
     }
 
@@ -242,7 +265,7 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(char*), char** param
  * Parse Command From string an run
  *
 */
-void EspToolkit::commandParseAndCall(char* ca, void (*reply)(char*)){
+void EspToolkit::commandParseAndCall(const char* ca, void (*reply)(char*)){
     uint8_t     parCnt{0};
     char*       param[SHORT]{NULL};
     char        search{' '};
@@ -258,7 +281,7 @@ void EspToolkit::commandParseAndCall(char* ca, void (*reply)(char*)){
     }
     if(parCnt>0){
         if(!commandCall(param[0],reply,param,parCnt)){
-            reply((char*)"Command not found! Try 'help' for more information.");reply(EOL);
+            reply((char*)"Command not found! Try 'help' for more information.");reply((char*)EOL);
         }
     }
     reply((char*)"ESPToolkit:/>");
@@ -301,7 +324,7 @@ bool EspToolkit::_variableAdd(const char* name,void* value,const char* descripti
 };
 void EspToolkit::variableList(const char* filter, void (*reply)(char*)){
     reply((char*)"Variables:");
-    reply(EOL);
+    reply((char*)EOL);
     AOS_VAR* i{aos_var};
     while(i != nullptr){
         if(!i->hidden && (!filter || strstr(i->name, filter))){ 
@@ -401,6 +424,8 @@ void EspToolkit::variablesAddDefault(){
     variableAdd("sys/date",     date,"",true,true);
     variableAdd("sys/hostname", hostname,"");
     variableAdd("sys/password", password,"");
+    variableAdd("sys/locked",   locked,"");
+    variableAdd("sys/cpuFreq", logLevel,"0-80MHz | 1-160MHz | 2-240MHz");
     variableAdd("sys/loglevel", logLevel,"0-Error | 1-Warning | 2-info | 3-Debug | 4-Verbose");
 };
 
@@ -410,13 +435,13 @@ void EspToolkit::commandAddDefault(){
         if(parCnt == 2){
             gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
             gpio_reset_pin(gpio);
-            gpio_set_direction(gpio, GPIO_MODE_INPUT);reply(EOL);
+            gpio_set_direction(gpio, GPIO_MODE_INPUT);reply((char*)EOL);
             if(gpio_get_level(gpio)){
                 reply((char*)"HIGH");
-                reply(EOL);
+                reply((char*)EOL);
             }else{
                 reply((char*)"LOW");
-                reply(EOL);
+                reply((char*)EOL);
             }
         }else if(parCnt == 3){
             gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
@@ -425,7 +450,7 @@ void EspToolkit::commandAddDefault(){
             gpio_set_level(gpio,atoi(param[2]));
         }else{
             reply((char*)"Invalid parameter!");
-            reply(EOL);
+            reply((char*)EOL);
             commandMan("gpio",reply);
             return;
         }
@@ -448,26 +473,26 @@ void EspToolkit::commandAddDefault(){
     commandAdd("set",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         if(parCnt < 2 || parCnt > 3){
             reply((char*)"Invalid parameter!");
-            reply(EOL);
+            reply((char*)EOL);
             commandMan("set",reply);
             return;
         }
         if(variableSet(param[1],param[2])){
             variableLoad(true);
             reply((char*)"ok");
-            reply(EOL);
+            reply((char*)EOL);
         }else{
             reply((char*)"Parameter not found!");
-            reply(EOL);
+            reply((char*)EOL);
         } 
     },NULL,"🖥  set [par] [val]");
 
     commandAdd("clear",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         reply((char*)"\033[2J\033[11H");
-        reply(EOL);
+        reply((char*)EOL);
     },NULL,"",true);
 
-    commandAdd("lock",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){},NULL,"🖥 lock current shell");
+    commandAdd("lock",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){},NULL,"🖥  lock current shell");
 
     commandAdd("reboot",[](void*, void (*reply)(char*), char** param,uint8_t parCnt){
         esp_restart();
@@ -480,10 +505,11 @@ void EspToolkit::commandAddDefault(){
 
     commandAdd("status",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
         reply((char*)"🖥  System:");
-        reply(EOL);
+        reply((char*)EOL);
         snprintf(OUT,LONG,"%-30s : %s %s","IDF Version",esp_get_idf_version(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s %s","FIRMWARE",firmware.c_str(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s %s","COMPILED",date.c_str(),EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d MHz %s","CPU Frequency",getCpuFrequencyMhz(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes FREE %s","HEAP",esp_get_free_heap_size(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes MIN FREE %s","HEAP",esp_get_minimum_free_heap_size(),EOL);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %f Hours %s","UPTIME",(double)esp_timer_get_time()/1000.0/1000.0/60.0/60.0,EOL);reply(OUT);

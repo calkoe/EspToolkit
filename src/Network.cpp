@@ -42,7 +42,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         EspToolkit* tk      = (EspToolkit*) network->tk;
         char OUT[LONG];
         reply((char*)"📶 Newtwork:");
-        reply(tk->EOL);
+        reply((char*)tk->EOL);
         const char* s;
         switch(WiFi.status()){
             case WL_CONNECTED:      s = "WL_CONNECTED";break;
@@ -107,11 +107,11 @@ Network::Network(EspToolkit* tk):tk{tk}{
                     break;
                 case HTTP_UPDATE_NO_UPDATES:
                     reply((char*)"[HTTP UPDATE] No Update Aviable.");
-                    reply(tk->EOL);
+                    reply((char*)tk->EOL);
                     break;
                 case HTTP_UPDATE_OK:
                     reply((char*)"[HTTP UPDATE] Update ok.");
-                    reply(tk->EOL);
+                    reply((char*)tk->EOL);
                     break;
             }
         }else{
@@ -124,7 +124,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         reply((char*)"Scaning for Networks...");
-        reply(tk->EOL);
+        reply((char*)tk->EOL);
         uint8_t n = WiFi.scanNetworks();
         if(n){
             for (uint8_t i = 0; i < n; i++){
@@ -160,7 +160,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         };
         tk->variableLoad(true);
         reply((char*)"DONE! ✅ > Type 'wifiStatus' to check status");
-        reply(tk->EOL);
+        reply((char*)tk->EOL);
         network->commit();
 
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
@@ -263,18 +263,16 @@ inline int16_t Network::calcRSSI(int32_t r){
     return min(max(2 * (r + 100.0), 0.0), 100.0);
 };
 
-char* Network::getApIpStr(char* buf){
+void Network::getApIpStr(char* buf){
     tcpip_adapter_ip_info_t ipInfo; 
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo);
     sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
-    return buf;
 }
 
-char* Network::getStaIpStr(char* buf){
+void Network::getStaIpStr(char* buf){
     tcpip_adapter_ip_info_t ipInfo; 
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
     sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
-    return buf;
 }
 
 #endif

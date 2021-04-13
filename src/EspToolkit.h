@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "esp32-hal-cpu.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
@@ -16,7 +17,7 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define TAG                 "toolkit"
+#define TAG "toolkit"
 
 //  Definitions
 #define SHORT               128   
@@ -85,11 +86,12 @@ class EspToolkit{
         static Uart                         uart;
         static SyncTimer                    timer;
         static Button                       button;
-        static char*                        EOL;
+        static const char*                  EOL;
         static void                         broadcast(char* msg);
 
         //API Settings
         static bool             status[];
+        static int              cpuFreq;
         static int              logLevel;
         static int              watchdog;
         static std::string      date;
@@ -103,7 +105,7 @@ class EspToolkit{
         static void             commandList(const char*,void (*reply)(char*));
         static void             commandMan(const char*, void (*reply)(char*));
         static bool             commandCall(const char*,void (*reply)(char*),char** = 0, uint8_t = 0);
-        static void             commandParseAndCall(char* ca,void (*reply)(char*));
+        static void             commandParseAndCall(const char* ca,void (*reply)(char*));
 
         //API Variables
         static bool             variableAdd(const char*,bool&,  const char* = "",bool = false,bool = false);

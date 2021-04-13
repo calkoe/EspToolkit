@@ -23,7 +23,7 @@ class Button{
             gpio_num_t          gpio;
             gpio_pull_mode_t    pullmode;
             unsigned            wait;
-            char*               topic;
+            const char*         topic;
         };
 
         QueueHandle_t remove_queue;
@@ -49,7 +49,7 @@ class Button{
          * @param wait time to wait on new status before triggering in ms. Can also be used to detect 'long press' on button (10-20ms for debouncing)
          * @param topic Events will send to this topic via PostOffice. Get GPIO status will be send as int pointer, access via: int status = *(int*)arg;
         */
-        void add(gpio_num_t gpio, gpio_pull_mode_t pullmode, unsigned wait, char* topic);
+        void add(gpio_num_t gpio, gpio_pull_mode_t pullmode, unsigned wait, const char* topic);
 
         /**
          * @brief Stop observing GPIO
