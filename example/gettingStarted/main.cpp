@@ -30,11 +30,10 @@ void setup()
     tk.variableAdd("demo/string",  demoString, "..comment..", false, false);
 
     // Example: Add Commands accesable via shell
-    tk.commandAdd("myPublisher",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
+    tk.commandAdd("myPublisher",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         if(parCnt>=3){
             mqtt.publish(param[1],param[2]);
-            reply((char*)"📨 sent!");
-            reply((char*)tk.EOL);
+            reply((char*)"📨 Message sent!\r\n");
         };
     },NULL,"📡 [topic] [message] | publish a message to topic",false);
 

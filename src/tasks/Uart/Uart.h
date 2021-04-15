@@ -22,16 +22,16 @@ class Uart{
 
         PostOffice<std::string>* events;
         LineIn<128> lineIn;
-        char* commandTopic;
-        char* broadcastTopic;
+        const char* commandTopic;
+        const char* broadcastTopic;
         struct simple_cmd_t{
             char* payload;
-            void  (*reply)(char* str);
+            void  (*reply)(const char* str);
         };
 
     public:
 
-        Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
-        static void print(char* text);
+        Uart(PostOffice<std::string>* events, const char* commandTopic, const char* broadcastTopic);
+        static void print(const char* text);
 
 };

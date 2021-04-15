@@ -29,7 +29,7 @@ class Telnet{
         char* broadcastTopic;
         struct simple_cmd_t{
             char* payload;
-            void  (*reply)(char* str);
+            void  (*reply)(const char* str);
         };
 
 
@@ -38,5 +38,5 @@ class Telnet{
 
         Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
         static int clientSock;
-        static void print(char* text);
+        static void print(const char* text);
 };

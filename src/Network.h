@@ -1,12 +1,15 @@
 #pragma once
 #if defined ESP32
 
-#include <WiFi.h> 
-#include <HTTPUpdate.h>
-#include <Update.h>
 #include "EspToolkit.h"
-#include "esp_wifi.h"
+
+#include <WiFi.h> 
+
 #include <tcpip_adapter.h>
+#include "esp_wifi.h"
+#include "esp_ota_ops.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
 
 #include "tasks/Telnet/Telnet.h"
 

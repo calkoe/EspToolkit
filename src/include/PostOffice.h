@@ -147,7 +147,9 @@ uint16_t PostOffice<T>::loop(uint8_t thread, bool isr){
     uint16_t   n;
     callback_t task;
     while( xQueueReceive( queue ,&(task),0) ){
-        (*task.callback)(task.ctx,task.arg);    
+        try{
+            (*task.callback)(task.ctx,task.arg);    
+        } catch (...) { /* */ }
         if(task.arg) free(task.arg);
         n++;
     }

@@ -37,12 +37,11 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("hotspot/password",  ap_password,       "📶 Hotspot Password");
     tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
     
-    tk->commandAdd("wifiStatus",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
+    tk->commandAdd("wifiStatus",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         char OUT[LONG];
-        reply((char*)"📶 Newtwork:");
-        reply((char*)tk->EOL);
+        reply((char*)"📶 Newtwork:\r\n");
         const char* s;
         switch(WiFi.status()){
             case WL_CONNECTED:      s = "WL_CONNECTED";break;
@@ -67,59 +66,59 @@ Network::Network(EspToolkit* tk):tk{tk}{
         IPAddress subnetMask    = WiFi.subnetMask();
         IPAddress gatewayIP     = WiFi.gatewayIP();
         IPAddress apIP          = WiFi.softAPIP();
-        snprintf(OUT,LONG,"%-30s : %s %s","Mode",m,tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s %s","Status",s,tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s %s","Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false",tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s %s","Hostname",tk->hostname.c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s %s","LocalMAC",WiFi.macAddress().c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s %s","BSSID",WiFi.BSSIDstr().c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d %s","Channel",WiFi.channel(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","LocalIP",localIP[0],localIP[1],localIP[2],localIP[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","SubnetMask",subnetMask[0],subnetMask[1],subnetMask[2],subnetMask[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","GatewayIP",gatewayIP[0],gatewayIP[1],gatewayIP[2],gatewayIP[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d dBm (%d%%) %s","RSSI",WiFi.RSSI(),network->calcRSSI(WiFi.RSSI()),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s %s","AP MAC",WiFi.softAPmacAddress().c_str(),tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d %s","AP IP",apIP[0],apIP[1],apIP[2],apIP[3],tk->EOL);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d %s","AP Stations",WiFi.softAPgetStationNum(),tk->EOL);reply(OUT);
-        if(network->telnet) snprintf(OUT,LONG,"%-30s : %s %s","Telnet connected",network->telnet->clientSock > 0 ? "true" : "false",tk->EOL);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s","Mode",m);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Status",s);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",tk->hostname.c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","LocalMAC",WiFi.macAddress().c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","BSSID",WiFi.BSSIDstr().c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d\r\n","Channel",WiFi.channel());reply(OUT);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","LocalIP",localIP[0],localIP[1],localIP[2],localIP[3]);reply(OUT);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","SubnetMask",subnetMask[0],subnetMask[1],subnetMask[2],subnetMask[3]);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","GatewayIP",gatewayIP[0],gatewayIP[1],gatewayIP[2],gatewayIP[3]);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d dBm (%d%%)\r\n","RSSI",WiFi.RSSI(),network->calcRSSI(WiFi.RSSI()));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","AP MAC",WiFi.softAPmacAddress().c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP IP",apIP[0],apIP[1],apIP[2],apIP[3]);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d\r\n","AP Stations",WiFi.softAPgetStationNum());reply(OUT);
+        if(network->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",network->telnet->clientSock > 0 ? "true" : "false");
     },this,  "📶 Shows System / Wifi status");
     
-
-    tk->commandAdd("wifiFirmware",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+    /*
+    tk->commandAdd("wifiOta",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
-        if(parCnt==2){
-            String url = param[1];
-            snprintf(OUT,LONG,"[HTTP UPDATE] Requesting: %s",url.c_str());reply(OUT);
-            httpUpdate.setLedPin(STATUSLED,0);
-            HTTPUpdateResult ret;
-            if(url.startsWith("https")){
-                WiFiClientSecure net;
-                ret = httpUpdate.update(net, param[1], (String)tk->firmware.c_str());
-            }else{
-                WiFiClient net;
-                ret = httpUpdate.update(net, param[1], (String)tk->firmware.c_str());
-            } 
-            switch(ret) {
-                case HTTP_UPDATE_FAILED:
-                    snprintf(OUT,LONG,"[HTTP UPDATE] Error (%d): %s %s", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str(),tk->EOL);reply(OUT);
-                    break;
-                case HTTP_UPDATE_NO_UPDATES:
-                    reply((char*)"[HTTP UPDATE] No Update Aviable.");
-                    reply((char*)tk->EOL);
-                    break;
-                case HTTP_UPDATE_OK:
-                    reply((char*)"[HTTP UPDATE] Update ok.");
-                    reply((char*)tk->EOL);
-                    break;
-            }
-        }else{
-            tk->commandMan("firmware",reply);
-        }
-    },this,"📶 [url] | load and install new firmware from URL (http or https)");
+        char OUT[LONG];
 
-    /*tk->commandAdd("wifiScan",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
+        if(parCnt==2){
+
+
+            FILE* f = fopen("/spiffs/localhost.pem", "r");
+            if (f == NULL) {
+                ESP_LOGE(TAG, "Failed to open file for reading");
+                return;
+            }
+            char* line = new char[5000];
+            fgets(line, sizeof(line), f);
+            fclose(f);
+
+            esp_http_client_config_t config = {};
+            config.url = param[1];
+            config.cert_pem = line;
+            config.skip_cert_common_name_check=true;
+            esp_err_t ret = esp_https_ota(&config);
+            if (ret == ESP_OK) {
+                esp_restart();
+            } else {
+                reply(strerror(ret));reply(" - Firmware upgrade failed\r\n");
+            }
+
+        }else{
+            tk->commandMan("wifiOta",reply);
+        }
+    },this,"📶 [url] | load and install new firmware from URL (https only!)");
+    */
+   
+    /*tk->commandAdd("wifiScan",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
@@ -144,37 +143,36 @@ Network::Network(EspToolkit* tk):tk{tk}{
         }else reply((char*)"❌ No Networks found!");
     },this,    "📶 Scans for nearby networks");*/
 
-    tk->commandAdd("wifiCommit",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
+    tk->commandAdd("wifiCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
         EspToolkit* tk      = (EspToolkit*) network->tk;
         if(parCnt>=2){
-                snprintf(OUT,LONG,"Set  wifi/enabled: %s %s","true",tk->EOL);reply(OUT);
+                snprintf(OUT,LONG,"Set  wifi/enabled: %s\r\n","true");reply(OUT);
                 network->sta_enable  = true;
-                snprintf(OUT,LONG,"Set  wifi/network: %s %s",param[1],tk->EOL);reply(OUT);
+                snprintf(OUT,LONG,"Set  wifi/network: %s\r\n",param[1]);reply(OUT);
                 tk->variableSet("wifi/network",param[1]);
         };
         if(parCnt>=3){
-                snprintf(OUT,LONG,"Set wifi/password: %s %s",param[2],tk->EOL);reply(OUT);
+                snprintf(OUT,LONG,"Set wifi/password: %s\r\n",param[2]);reply(OUT);
                 tk->variableSet("wifi/password",param[2]);
         };
         tk->variableLoad(true);
-        reply((char*)"DONE! ✅ > Type 'wifiStatus' to check status");
-        reply((char*)tk->EOL);
+        reply((char*)"DONE! ✅ > Type 'wifiStatus' to check status\r\n");
         network->commit();
 
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
 
-    tk->commandAdd("wifiDns",[](void* c, void (*reply)(char*), char** param,uint8_t parCnt){
+    tk->commandAdd("wifiDns",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    network = (Network*) c;
-        EspToolkit* tk      = (EspToolkit*) network->tk;
+        //EspToolkit* tk      = (EspToolkit*) network->tk;
         if(parCnt==2){
             IPAddress remote_addr;
             if(WiFi.hostByName(param[1], remote_addr)){
-                snprintf(OUT,LONG,"✅ DNS %s -> %d.%d.%d.%d %s",param[1],remote_addr[0],remote_addr[1],remote_addr[2],remote_addr[3],tk->EOL);reply(OUT);
+                snprintf(OUT,LONG,"✅ DNS %s -> %d.%d.%d.%d\r\n",param[1],remote_addr[0],remote_addr[1],remote_addr[2],remote_addr[3]);reply(OUT);
             }else{
-                snprintf(OUT,LONG,"❌ DNS lookup failed %s",tk->EOL);reply(OUT);
+                snprintf(OUT,LONG,"❌ DNS lookup failed\r\n");reply(OUT);
             };
         }
     },this,  "📶 [ip] | check internet connection");

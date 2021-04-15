@@ -93,7 +93,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
     
 }
 
-void Telnet::print(char* text){
+void Telnet::print(const char* text){
     send(clientSock, text, strlen(text), 0);
 } 
 

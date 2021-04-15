@@ -1,7 +1,10 @@
 #pragma once
 #if defined ESP32
+#define _GLIBCXX_USE_C99
 
-#include <string.h>
+#include <string>
+#include <iostream>
+#include <sys/unistd.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -9,6 +12,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
+#include "esp_spiffs.h"
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 
@@ -52,7 +56,7 @@ class EspToolkit{
         enum AOS_DT    { AOS_DT_BOOL, AOS_DT_INT, AOS_DT_DOUBLE, AOS_DT_STRING };
         struct AOS_CMD {
             const char* name;
-            void        (*function)(void*,void (*)(char*), char**, uint8_t);
+            void        (*function)(void*,void (*)(const char*), char**, uint8_t);
             void*       ctx;
             const char* description;
             bool        hidden;
@@ -86,8 +90,7 @@ class EspToolkit{
         static Uart                         uart;
         static SyncTimer                    timer;
         static Button                       button;
-        static const char*                  EOL;
-        static void                         broadcast(char* msg);
+        static void                         broadcast(const char* msg);
 
         //API Settings
         static bool             status[];
@@ -101,18 +104,18 @@ class EspToolkit{
         static std::string      firmware;
 
         //API Commands
-        static bool             commandAdd(const char*,void (*)(void* ctx,void (*reply)(char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);
-        static void             commandList(const char*,void (*reply)(char*));
-        static void             commandMan(const char*, void (*reply)(char*));
-        static bool             commandCall(const char*,void (*reply)(char*),char** = 0, uint8_t = 0);
-        static void             commandParseAndCall(const char* ca,void (*reply)(char*));
+        static bool             commandAdd(const char*,void (*)(void* ctx,void (*reply)(const char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);
+        static void             commandList(const char*,void (*reply)(const char*));
+        static void             commandMan(const char*, void (*reply)(const char*));
+        static bool             commandCall(const char*,void (*reply)(const char*),char** = 0, uint8_t = 0);
+        static void             commandParseAndCall(const char* ca,void (*reply)(const char*));
 
         //API Variables
         static bool             variableAdd(const char*,bool&,  const char* = "",bool = false,bool = false);
         static bool             variableAdd(const char*,int&,   const char* = "",bool = false,bool = false);
         static bool             variableAdd(const char*,double&,const char* = "",bool = false,bool = false);
         static bool             variableAdd(const char*,std::string&,const char* = "",bool = false,bool = false);
-        static void             variableList(const char*,void (*reply)(char*));
+        static void             variableList(const char*,void (*reply)(const char*));
         static bool             variableSet(const char*,char*);
         static void*            variableGet(const char*);
         static void             variableLoad(bool save = false, bool reset = false);
@@ -120,6 +123,7 @@ class EspToolkit{
         // Tools
         inline double           mapVal(double, int, int, int, int);
         inline bool             sign(double i){return i < 0;};
+        std::vector<std::string> split (std::string s, std::string delimiter);
 
 };
 #endif

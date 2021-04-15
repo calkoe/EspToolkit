@@ -3,7 +3,7 @@
 #include "Uart.h"
 
 
-Uart::Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic):events{events},commandTopic{commandTopic}{
+Uart::Uart(PostOffice<std::string>* events, const char* commandTopic, const char* broadcastTopic):events{events},commandTopic{commandTopic}{
 
     lineIn.setOnEcho([](char* str, void* ctx){
         std::cout << str;
@@ -43,7 +43,7 @@ Uart::Uart(PostOffice<std::string>* events, char* commandTopic, char* broadcastT
     
 };
 
-void Uart::print(char* text){
+void Uart::print(const char* text){
     std::cout << text;
 };
 

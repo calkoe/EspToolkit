@@ -42,7 +42,7 @@ class SyncTimer{
             uint16_t         setTimeout(void(*)(void* ctx),void* ctx,uint16_t timeout,const char* name = "",bool = false);
             AOS_TASK*        unsetInterval(uint16_t id);
             void             loop();
-            void             printTasks(void (*reply)(char*));
+            void             printTasks(void (*reply)(const char*));
 
 };
 
@@ -126,7 +126,9 @@ inline void SyncTimer::loop(){
         if(!i->interval || (int64_t)(t1-i->timestamp)>=i->interval){
             //reply("Abweichung: " + (String)(unsigned long)(ms-i->timestamp));
             unlock();
-                (*i->function)(i->ctx); 
+                try{
+                    (*i->function)(i->ctx); 
+                } catch (...) { /* */ }
                 taskYIELD();
             lock();
             int64_t t2 = esp_timer_get_time();
@@ -142,13 +144,12 @@ inline void SyncTimer::loop(){
 /**
  * Display Current Tasks
 */
-inline void SyncTimer::printTasks(void (*reply)(char*)){
-    reply((char*)"Tasks: \r\n");
-    reply((char*)EOL);
+inline void SyncTimer::printTasks(void (*reply)(const char*)){
+    reply((char*)"Timers:\r\n");
     AOS_TASK* i{aos_task};
     while(i){
         char OUT[128];
-        snprintf(OUT,128,"> %-20s : i: %-9i t#: %-9i t+: %-5i %s",i->description,i->interval/1000,i->time/1000,i->timeMax/1000,EOL);
+        snprintf(OUT,128,"> %-20s : i: %-9i t#: %-9i t+: %-5i\r\n",i->description,i->interval/1000,i->time/1000,i->timeMax/1000);
         reply(OUT);
         i = i->aos_task;
     };
