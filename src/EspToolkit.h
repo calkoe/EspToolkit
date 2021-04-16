@@ -119,11 +119,13 @@ class EspToolkit{
         static bool             variableSet(const char*,char*);
         static void*            variableGet(const char*);
         static void             variableLoad(bool save = false, bool reset = false);
-
-        // Tools
-        inline double           mapVal(double, int, int, int, int);
-        inline bool             sign(double i){return i < 0;};
-        std::vector<std::string> split (std::string s, std::string delimiter);
-
 };
+
+// Tools
+double                          mapVal(double, int, int, int, int);
+inline bool                     sign(double i){return i < 0;};
+inline double                   min(double a, double b){return (a < b ? a : b);};
+inline double                   max(double a, double b){return (a > b ? a : b);};
+std::vector<std::string>        split (std::string s, std::string delimiter);
+
 #endif

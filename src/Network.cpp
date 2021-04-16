@@ -6,6 +6,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     // TCPIP
     tcpip_adapter_init();
+    esp_event_loop_init(wifi_event_handler, this);
 
     // TELNET
     if(telnet_enable){
@@ -25,6 +26,8 @@ Network::Network(EspToolkit* tk):tk{tk}{
         }
     },this);
 
+    // CONFIG VARIABLES
+    tk->variableAdd("wifi/powerSafe",    ps_type,           "📶 WiFI Power Safe: 0=WIFI_PS_NONE | 1=WIFI_PS_MIN_MODEM | 2=WIFI_PS_MAX_MODEM");
     tk->variableAdd("wifi/enable",       sta_enable,        "📶 Enable WiFi STA-Mode");
     tk->variableAdd("wifi/network",      sta_network,       "📶 Network SSID");
     tk->variableAdd("wifi/password",     sta_password,      "📶 Network Password");
@@ -32,55 +35,59 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("wifi/subnet",       sta_subnet,        "📶 Subnet");
     tk->variableAdd("wifi/gateway",      sta_gateway,       "📶 Gateway");
     tk->variableAdd("wifi/dns",          sta_dns,           "📶 DNS");
-    tk->variableAdd("wifi/sleep",        sta_modenSleep,    "📶 Enable modem sleep to save energy");
     tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot-Mode");
     tk->variableAdd("hotspot/password",  ap_password,       "📶 Hotspot Password");
     tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
-    
-    tk->commandAdd("wifiStatus",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-        Network*    network = (Network*) c;
-        EspToolkit* tk      = (EspToolkit*) network->tk;
+
+    // COMMANDS
+    tk->commandAdd("wifiStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+        Network*    _this   = (Network*) ctx;
+        EspToolkit* tk      = (EspToolkit*) _this->tk;
         char OUT[LONG];
         reply((char*)"📶 Newtwork:\r\n");
-        const char* s;
-        switch(WiFi.status()){
-            case WL_CONNECTED:      s = "WL_CONNECTED";break;
-            case WL_NO_SHIELD:      s = "WL_NO_SHIELD";break;
-            case WL_IDLE_STATUS:    s = "WL_IDLE_STATUS";break;
-            case WL_CONNECT_FAILED: s = "WL_CONNECT_FAILED";break;
-            case WL_NO_SSID_AVAIL:  s = "WL_NO_SSID_AVAIL";break;
-            case WL_SCAN_COMPLETED: s = "WL_SCAN_COMPLETED";break;
-            case WL_CONNECTION_LOST:s = "WL_CONNECTION_LOST";break;
-            case WL_DISCONNECTED:   s = "WL_DISCONNECTED";break;
-            default: s = "UNKOWN";
-        };
+
+        wifi_mode_t mode;
         const char* m;
-        switch(WiFi.getMode()){
-            case WIFI_AP:           m = "WIFI_AP";break;
-            case WIFI_STA:          m = "WIFI_STA";break;
-            case WIFI_AP_STA:       m = "WIFI_AP_STA";break;
-            case WIFI_OFF:          m = "WIFI_OFF";break;
-            default:                m = "UNKOWN";
+        if(esp_wifi_get_mode(&mode) == ESP_ERR_WIFI_NOT_INIT){
+            m = "ESP_ERR_WIFI_NOT_INIT";
+        }else{
+            switch(mode){
+                case WIFI_MODE_NULL:     m = "WIFI_MODE_NULL";break;
+                case WIFI_MODE_STA:      m = "WIFI_MODE_STA";break;
+                case WIFI_MODE_AP:       m = "WIFI_MODE_AP";break;
+                case WIFI_MODE_APSTA:    m = "WIFI_MODE_APSTA";break;
+                default:                 m = "UNKOWN";
+            }
         };
-        IPAddress localIP       = WiFi.localIP();
-        IPAddress subnetMask    = WiFi.subnetMask();
-        IPAddress gatewayIP     = WiFi.gatewayIP();
-        IPAddress apIP          = WiFi.softAPIP();
-        snprintf(OUT,LONG,"%-30s : %s","Mode",m);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","Status",s);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Mode",m);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",tk->hostname.c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","LocalMAC",WiFi.macAddress().c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","BSSID",WiFi.BSSIDstr().c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d\r\n","Channel",WiFi.channel());reply(OUT);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","LocalIP",localIP[0],localIP[1],localIP[2],localIP[3]);reply(OUT);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","SubnetMask",subnetMask[0],subnetMask[1],subnetMask[2],subnetMask[3]);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","GatewayIP",gatewayIP[0],gatewayIP[1],gatewayIP[2],gatewayIP[3]);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d dBm (%d%%)\r\n","RSSI",WiFi.RSSI(),network->calcRSSI(WiFi.RSSI()));reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","AP MAC",WiFi.softAPmacAddress().c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP IP",apIP[0],apIP[1],apIP[2],apIP[3]);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d\r\n","AP Stations",WiFi.softAPgetStationNum());reply(OUT);
-        if(network->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",network->telnet->clientSock > 0 ? "true" : "false");
+        tcpip_adapter_ip_info_t ipInfoAp, ipInfoSta; 
+        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfoAp);
+        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfoSta);
+        uint8_t macAp[6], macSta[6];
+        esp_wifi_get_mac(WIFI_IF_AP, macAp);
+        esp_wifi_get_mac(WIFI_IF_STA, macSta);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP IP",IP2STR(&ipInfoAp.ip));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP MASK",IP2STR(&ipInfoAp.netmask));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP GW",IP2STR(&ipInfoAp.gw));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %02X:%02X:%02X:%02X:%02X:%02X\r\n", "AP MAC", macAp[0], macAp[1], macAp[2], macAp[3], macAp[4], macAp[5]);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA IP",IP2STR(&ipInfoSta.ip));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA MASK",IP2STR(&ipInfoSta.netmask));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA GW",IP2STR(&ipInfoSta.gw));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA DNS1",IP2STR(&dns_getserver(0)->u_addr.ip4));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA DNS2",IP2STR(&dns_getserver(1)->u_addr.ip4));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %02X:%02X:%02X:%02X:%02X:%02X\r\n", "STA MAC", macSta[0], macSta[1], macSta[2], macSta[3], macSta[4], macSta[5]);reply(OUT);
+        wifi_ap_record_t infoSta;
+        esp_wifi_sta_get_ap_info(&infoSta);
+        snprintf(OUT,LONG,"%-30s : %02X:%02X:%02X:%02X:%02X:%02X\r\n","STA BSSID",infoSta.bssid[0], infoSta.bssid[1], infoSta.bssid[2], infoSta.bssid[3], infoSta.bssid[4], infoSta.bssid[5]);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d dBm (%d%%)\r\n","RSSI",infoSta.rssi,_this->calcRSSI(infoSta.rssi));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d\r\n","Primary channel",infoSta.primary);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d\r\n","Secondary channel",infoSta.second);reply(OUT);
+         wifi_sta_list_t clients;
+        esp_wifi_ap_get_sta_list(&clients); 
+        snprintf(OUT,LONG,"%-30s : %d\r\n","AP Stations",clients.num);reply(OUT);
+        if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");
     },this,  "📶 Shows System / Wifi status");
     
     /*
@@ -118,38 +125,75 @@ Network::Network(EspToolkit* tk):tk{tk}{
     },this,"📶 [url] | load and install new firmware from URL (https only!)");
     */
    
-    /*tk->commandAdd("wifiScan",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
+    tk->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
-        Network*    network = (Network*) c;
-        EspToolkit* tk      = (EspToolkit*) network->tk;
-        reply((char*)"Scaning for Networks...");
-        reply((char*)tk->EOL);
-        uint8_t n = WiFi.scanNetworks();
-        if(n){
-            for (uint8_t i = 0; i < n; i++){
-                const char* e;
-                switch(WiFi.encryptionType(i)){
-                    case 0: e = "OPEN";break;
-                    case 1: e = "WEP";break;
-                    case 2: e = "WPA_PSK";break;
-                    case 3: e = "WPA2_PSK";break;
-                    case 4: e = "WPA_WPA2_PSK";break;
-                    case 5: e = "WPA2_ENTERPRISE";break;
-                    case 6: e = "AUTH_MAX";break;
-                    default:e = "UNKOWN";
+        Network*    _this   = (Network*) ctx;
+        EspToolkit* tk      = (EspToolkit*) _this->tk;
+        uint16_t number = DEFAULT_SCAN_LIST_SIZE;
+        wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+        uint16_t ap_count = 0;
+        memset(ap_info, 0, sizeof(ap_info));
+        wifi_scan_config_t config;
+        config.ssid = 0;
+        config.bssid = 0;
+        config.channel = 0;
+        config.show_hidden = true;
+        config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+        config.scan_time.active.min = 100;
+        config.scan_time.active.max = 300;
+        reply((char*)"Scaning Networks...\r\n");
+        if(esp_wifi_scan_start(&config, true) == ESP_OK) {
+            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
+            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_count));
+            for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
+                char* authmode{""};
+                char* pairwise_cipher{""};
+                char* group_cipher{""};
+                switch (ap_info[i].authmode) {
+                    case WIFI_AUTH_OPEN:            authmode = (char*)"WIFI_AUTH_OPEN";break;
+                    case WIFI_AUTH_WEP:             authmode = (char*)"WIFI_AUTH_WEP";break;
+                    case WIFI_AUTH_WPA_PSK:         authmode = (char*)"WIFI_AUTH_WPA_PSK";break;
+                    case WIFI_AUTH_WPA2_PSK:        authmode = (char*)"WIFI_AUTH_WPA2_PSK";break;
+                    case WIFI_AUTH_WPA_WPA2_PSK:    authmode = (char*)"WIFI_AUTH_WPA_WPA2_PSK";break;
+                    case WIFI_AUTH_WPA2_ENTERPRISE: authmode = (char*)"WIFI_AUTH_WPA2_ENTERPRISE";break;
+                    //case WIFI_AUTH_WPA3_PSK: authmode = "WIFI_AUTH_WPA3_PSK";break;
+                    //case WIFI_AUTH_WPA2_WPA3_PSK: authmode = "WIFI_AUTH_WPA2_WPA3_PSK";break;
+                    default: authmode = "WIFI_AUTH_UNKNOWN";break;
                 }
-                snprintf(OUT,LONG,"%-30s : %d dBm (%d%%) (%s) BSSID: %s %s",WiFi.SSID(i).c_str(),WiFi.RSSI(i), network->calcRSSI(WiFi.RSSI(i)),e,WiFi.BSSIDstr(i).c_str(),tk->EOL);reply(OUT);
+                if (ap_info[i].authmode != WIFI_AUTH_WEP) {
+                    switch (ap_info[i].pairwise_cipher){
+                        case WIFI_CIPHER_TYPE_NONE:         pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_NONE";break;
+                        case WIFI_CIPHER_TYPE_WEP40:        pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_WEP40";break;
+                        case WIFI_CIPHER_TYPE_WEP104:       pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_WEP104";break;
+                        case WIFI_CIPHER_TYPE_TKIP:         pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_TKIP";break;
+                        case WIFI_CIPHER_TYPE_CCMP:         pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_CCMP";break;
+                        case WIFI_CIPHER_TYPE_TKIP_CCMP:    pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_TKIP_CCMP";break;
+                        default:  pairwise_cipher = "WIFI_CIPHER_TYPE_UNKNOWN";break;
+                    }
+                    switch (ap_info[i].group_cipher) {
+                        case WIFI_CIPHER_TYPE_NONE:         pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_NONE";break;
+                        case WIFI_CIPHER_TYPE_WEP40:        pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_WEP40";break;
+                        case WIFI_CIPHER_TYPE_WEP104:       pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_WEP104";break;
+                        case WIFI_CIPHER_TYPE_TKIP:         pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_TKIP";break;
+                        case WIFI_CIPHER_TYPE_CCMP:         pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_CCMP";break;
+                        case WIFI_CIPHER_TYPE_TKIP_CCMP:    pairwise_cipher = (char*)"WIFI_CIPHER_TYPE_TKIP_CCMP";break;
+                        default:  pairwise_cipher = "WIFI_CIPHER_TYPE_UNKNOWN";break;
+                    }
+                }
+                snprintf(OUT,LONG,"%-30s : %-3d dBm (%-3d%%) | Authmode: %s | Pairwise_cipher: %s | Group_cipher: %s\r\n",ap_info[i].ssid, ap_info[i].rssi, _this->calcRSSI(ap_info[i].rssi),authmode,pairwise_cipher,group_cipher);reply(OUT);
             }
-        }else reply((char*)"❌ No Networks found!");
-    },this,    "📶 Scans for nearby networks");*/
+        }else{
+            reply((char*)"Scaning failed.");
+        }
+    },this, "📶 Scans for nearby networks");
 
-    tk->commandAdd("wifiCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
+    tk->commandAdd("wifiCommit",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
-        Network*    network = (Network*) c;
-        EspToolkit* tk      = (EspToolkit*) network->tk;
+        Network*    _this = (Network*) ctx;
+        EspToolkit* tk    = (EspToolkit*) _this->tk;
         if(parCnt>=2){
                 snprintf(OUT,LONG,"Set  wifi/enabled: %s\r\n","true");reply(OUT);
-                network->sta_enable  = true;
+                _this->sta_enable  = true;
                 snprintf(OUT,LONG,"Set  wifi/network: %s\r\n",param[1]);reply(OUT);
                 tk->variableSet("wifi/network",param[1]);
         };
@@ -159,61 +203,85 @@ Network::Network(EspToolkit* tk):tk{tk}{
         };
         tk->variableLoad(true);
         reply((char*)"DONE! ✅ > Type 'wifiStatus' to check status\r\n");
-        network->commit();
+        _this->commit();
 
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
-
-    tk->commandAdd("wifiDns",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
+    
+    
+    tk->commandAdd("wifiDns",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
-        Network*    network = (Network*) c;
-        //EspToolkit* tk      = (EspToolkit*) network->tk;
-        if(parCnt==2){
-            IPAddress remote_addr;
-            if(WiFi.hostByName(param[1], remote_addr)){
-                snprintf(OUT,LONG,"✅ DNS %s -> %d.%d.%d.%d\r\n",param[1],remote_addr[0],remote_addr[1],remote_addr[2],remote_addr[3]);reply(OUT);
-            }else{
-                snprintf(OUT,LONG,"❌ DNS lookup failed\r\n");reply(OUT);
-            };
+        Network*    _this = (Network*) ctx;
+        EspToolkit* tk    = (EspToolkit*) _this->tk;
+        if(parCnt>=2){
+            ip_addr_t ip_Addr{0};
+            dns_gethostbyname(param[1], &ip_Addr, [](const char *name, const ip_addr_t* ipaddr, void *callback_arg){
+                if(ipaddr) *(ip_addr_t*)callback_arg = *ipaddr;
+            }, &ip_Addr);
+            for(uint8_t i{0};i<10;i++){
+                if((u32_t)ip_Addr.u_addr.ip4.addr){
+                    snprintf(OUT,LONG,"✅ DNS Resolved %s -> %d.%d.%d.%d\r\n",param[1],IP2STR(&ip_Addr.u_addr.ip4));reply(OUT);
+                    return;
+                }
+                vTaskDelay(100);
+            }
+            snprintf(OUT,LONG,"❌ DNS lookup timeout\r\n");reply(OUT);
+        }else{
+            tk->commandMan("wifiDns",reply);
         }
-    },this,  "📶 [ip] | check internet connection");
+    },this,  "📶 [ip] | resolve DNS");
+    
+
 };
 
 void Network::commit(){
 
+    //Config
     tk->status[STATUS_BIT_NETWORK] = true;
+    bool sta = sta_enable && !sta_network.empty();
+    bool ap  = ap_enable  && !tk->hostname.empty();
+    tk->hostname.copy((char*)config_ap.ap.ssid,32,0);
+    ap_password.copy((char*)config_ap.ap.password,64,0);
+    sta_network.copy((char*)config_sta.sta.ssid,32,0);
+    sta_password.copy((char*)config_sta.sta.password,64,0);
 
-    esp_event_loop_init(wifi_event_handler, this);
-    WiFi.persistent(false); 
-    WiFi.mode(WIFI_STA);
-    WiFi.setHostname((const char*)tk->hostname.c_str()); 
-    WiFi.setSleep(sta_modenSleep);
-    WiFi.setTxPower(WIFI_POWER_19_5dBm);
-    WiFi.mode(WIFI_OFF);
+    esp_wifi_init(&config_init);
+    esp_wifi_set_ps((wifi_ps_type_t)ps_type);
 
-    //STA
-    if(sta_enable && sta_network.length()){
-        
-        tk->status[STATUS_BIT_NETWORK] = false;
+    if(sta && ap)   esp_wifi_set_mode(WIFI_MODE_APSTA);
+    else if(ap)     esp_wifi_set_mode(WIFI_MODE_AP);
+    else if(sta)    esp_wifi_set_mode(WIFI_MODE_STA);
+    else            esp_wifi_set_mode(WIFI_MODE_NULL);
 
-        if(sta_ip.length() && sta_subnet.length() && sta_gateway.length() && sta_dns.length()){
-            IPAddress wifiIp;
-            IPAddress wifiDns;
-            IPAddress wifiGateway;
-            IPAddress wifiSubnet; 
-            wifiIp.fromString((String)sta_ip.c_str());
-            wifiDns.fromString((String)sta_dns.c_str());
-            wifiSubnet.fromString((String)sta_subnet.c_str());
-            wifiGateway.fromString((String)sta_gateway.c_str());
-            WiFi.config(wifiIp,wifiGateway,wifiSubnet,wifiDns);
+    if(ap){
+        esp_wifi_set_config(WIFI_IF_AP, &config_ap);
+        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP,  tk->hostname.c_str());
+        tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP);
+    }
+
+    if(sta){
+        esp_wifi_set_config(WIFI_IF_STA, &config_sta);
+        if(!sta_ip.empty() && !sta_subnet.empty() && !sta_gateway.empty() && !sta_dns.empty()){
+            tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
+            tcpip_adapter_ip_info_t ip_info;
+            ip4addr_aton(sta_ip.c_str(), &ip_info.ip);
+            ip4addr_aton(sta_gateway.c_str(), &ip_info.gw);
+            ip4addr_aton(sta_subnet.c_str(),   &ip_info.netmask);
+            tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
+            tcpip_adapter_dns_info_t dns_info;
+            ipaddr_aton(sta_dns.c_str(),&dns_info.ip);
+            tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, TCPIP_ADAPTER_DNS_MAIN, &dns_info);
         }
-        WiFi.begin((const char*)sta_network.c_str(),(const char*)sta_password.c_str());
-    };
+        tk->status[STATUS_BIT_NETWORK] = false;
+    }
 
-    //AP
-    if(ap_enable && tk->hostname.length() && !WiFi.softAPgetStationNum()){
-        WiFi.softAPConfig(IPAddress(192, 168, 100, 1), IPAddress(192, 168, 100, 1), IPAddress(255, 255, 255, 0));
-        WiFi.softAP((const char*)tk->hostname.c_str(),(const char*)ap_password.c_str());
-    };
+    if(ap || sta){
+        esp_wifi_start();
+        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, tk->hostname.c_str());
+        mdns_init();
+        mdns_hostname_set(tk->hostname.c_str());
+        mdns_instance_name_set(tk->hostname.c_str());
+        mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
+    }
 
 };
 

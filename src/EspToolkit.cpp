@@ -368,7 +368,7 @@ bool EspToolkit::variableSet(const char* name,char* value){
             if(i->aos_dt==AOS_DT_BOOL)      *(bool*)(i->value)   = !value ? false   : (!strcmp(value,"1") || !strcmp(value,"true")) ? true : false;
             if(i->aos_dt==AOS_DT_INT)       *(int*)(i->value)    = !value ? 0       : atoi(value);
             if(i->aos_dt==AOS_DT_DOUBLE)    *(double*)(i->value) = !value ? 0.0     : atof(value); 
-            if(i->aos_dt==AOS_DT_STRING)    *(std::string*)(i->value) = !value ? 0       : value;
+            if(i->aos_dt==AOS_DT_STRING)    *(std::string*)(i->value) = !value ? "" : value;
             return true;
         }
         i = i->aos_var;
@@ -433,21 +433,12 @@ void EspToolkit::variableLoad(bool save, bool reset){
     nvs_close(my_handle);
 };
 
-//TOOLS
-double EspToolkit::mapVal(double x, int in_min, int in_max, int out_min, int out_max)
-{
-    double r = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-    if(r > out_max) r = out_max;
-    if(r < out_min) r = out_min;
-    return r;
-}
-
 void EspToolkit::variablesAddDefault(){
     variableAdd("sys/hostname", hostname,   "🖥  System Hostname");
     variableAdd("sys/password", password,   "🖥  System Password");
     variableAdd("sys/locked",   locked,     "🖥  Locked");
-    variableAdd("sys/cpuFreq",  cpuFreq,    "🖥  CPU Speed: 0-80MHz | 1-160MHz | 2-240MHz");
-    variableAdd("sys/loglevel", logLevel,   "🖥  Loglevel: 0-Error | 1-Warning | 2-info | 3-Debug | 4-Verbose");
+    variableAdd("sys/cpuFreq",  cpuFreq,    "🖥  CPU Speed: 0=80MHz | 1=160MHz | 2=240MHz");
+    variableAdd("sys/loglevel", logLevel,   "🖥  Loglevel: 0=Error | 1=Warning | 2=info | 3=Debug | 4=Verbose");
 };
 
 void EspToolkit::commandAddDefault(){
@@ -544,8 +535,16 @@ void EspToolkit::commandAddDefault(){
     },NULL,"🖥  Print active syncTimers");
 };
 
+//TOOLS
+double mapVal(double x, int in_min, int in_max, int out_min, int out_max)
+{
+    double r = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    if(r > out_max) r = out_max;
+    if(r < out_min) r = out_min;
+    return r;
+}
 
-std::vector<std::string> EspToolkit::split (std::string s, std::string delimiter) {
+std::vector<std::string> split (std::string s, std::string delimiter) {
     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
     std::string token;
     std::vector<std::string> res;

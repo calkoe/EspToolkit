@@ -73,16 +73,21 @@ void Mqtt::commit(){
 
     tk->status[STATUS_BIT_MQTT] = true;
 
-    //Begin Session
+    if(client){
+        esp_mqtt_client_disconnect(client);
+        esp_mqtt_client_destroy(client);
+        client = NULL;
+    }
+
     if(enable){
         tk->status[STATUS_BIT_MQTT] = false;
         config.event_handle = &mqtt_event_handler; 
         config.user_context = this;  
         config.uri          = uri.c_str();
-        config.client_id    = tk->hostname.c_str();
+        config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
         client = esp_mqtt_client_init(&config);
         esp_mqtt_client_start(client);
-    }
+    } 
 
 }
 

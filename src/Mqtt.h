@@ -32,9 +32,11 @@ class Mqtt{
         void unsubscribe(std::string topic); 
         esp_mqtt_error_codes_t lastError{};
 
+        //LOW LEVEL CONFIG
+        esp_mqtt_client_config_t    config{};
+
         //CONFIG
         bool                        enable{true};
-        esp_mqtt_client_config_t    config{};
         std::string                 uri{"mqtt://test.mosquitto.org:1883"};
 
 };
