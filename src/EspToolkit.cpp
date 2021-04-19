@@ -386,7 +386,7 @@ void EspToolkit::variableLoad(bool save, bool reset){
     ESP_LOGI(TAG,"Opening Non-Volatile Storage (NVS) handle... ");
     nvs_handle my_handle;
     esp_err_t ret;
-    ret = nvs_open("tkstorage", NVS_READWRITE, &my_handle);
+    ret = nvs_open(NVS_DEFAULT_PART_NAME, NVS_READWRITE, &my_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG,"Opening Non-Volatile Storage (NVS) handle... ",esp_err_to_name(ret));
     } else {
@@ -513,17 +513,22 @@ void EspToolkit::commandAddDefault(){
         snprintf(OUT,LONG,"%-30s : %s\r\n","FIRMWARE",firmware.c_str());reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","COMPILED",date.c_str());reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Frequency",getCpuFrequencyMhz());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d Bytes FREE\r\n","HEAP",esp_get_free_heap_size());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d Bytes MIN FREE\r\n","HEAP",esp_get_minimum_free_heap_size());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d Bytes FREE, %d Bytes MIN FREE\r\n","HEAP",esp_get_free_heap_size(),esp_get_minimum_free_heap_size());reply(OUT);
+        nvs_stats_t nvs_stats;
+        esp_err_t ret = nvs_get_stats(NVS_DEFAULT_PART_NAME, &nvs_stats);
+        if(ret != ESP_OK){
+            ESP_LOGE(TAG, "Failed to get NVS partition information (%s)", esp_err_to_name(ret));
+        }else{
+            snprintf(OUT,LONG,"%-30s : %d total_entries, %d free_entries, %d used_entries, %d namespace_count\r\n","NVS",nvs_stats.total_entries,nvs_stats.free_entries,nvs_stats.used_entries,nvs_stats.namespace_count);reply(OUT);
+        }
         size_t total = 0, used = 0;
-        esp_err_t ret = esp_spiffs_info(NULL, &total, &used);
+        ret = esp_spiffs_info(NULL, &total, &used);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
         } else {
-            ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+            esp_spiffs_info("/", &total, &used);
+            snprintf(OUT,LONG,"%-30s : %d Bytes total, %d Bytes used\r\n","SPIFFS",total,used);reply(OUT);
         }
-        esp_spiffs_info("/", &total, &used);
-        snprintf(OUT,LONG,"%-30s : %d Bytes total, %d Bytes used\r\n","SPIFFS",total,used);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %f Hours\r\n","UPTIME",(double)esp_timer_get_time()/1000.0/1000.0/60.0/60.0);reply(OUT);
     },NULL,"🖥  Print system information");
 

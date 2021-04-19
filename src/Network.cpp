@@ -92,7 +92,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         esp_wifi_ap_get_sta_list(&clients); 
         snprintf(OUT,LONG,"%-30s : %d\r\n","AP Stations",clients.num);reply(OUT);
         if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");
-    },this,  "📶 Shows System / Wifi status");
+    },this,  "📶 Wifi status");
     
     tk->commandAdd("wifiOta",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
 

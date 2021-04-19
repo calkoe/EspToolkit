@@ -21,7 +21,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
     // Shell
     tk->variableAdd("mqtt/enable",      enable,         "📡  MQTT Enable");
     tk->variableAdd("mqtt/uri",         uri,            "📡  MQTT URI");
-    tk->variableAdd("mqtt/commandTopic",commandTopic,   "📡  Receive and send Commands via this topic");
+    tk->variableAdd("mqtt/cmd",         commandTopic,   "📡  MQTT Receive and send Commands via this topic");
 
     tk->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
@@ -45,8 +45,8 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
 
     tk->commandAdd("mqttStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
-        snprintf(OUT,128,"%-30s  : %s\r\n","Enable",_this->enable ? "true" : "false");reply(OUT);
-        snprintf(OUT,128,"%-30s  : %s\r\n","Connected",_this->tk->status[STATUS_BIT_MQTT]  ? "true" : "false");reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Enable",_this->enable ? "true" : "false");reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Connected",_this->tk->status[STATUS_BIT_MQTT]  ? "true" : "false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_last_esp_err",esp_err_to_name(_this->lastError.esp_tls_last_esp_err));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_stack_err",strerror(_this->lastError.esp_tls_stack_err));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_cert_verify_flags",strerror(_this->lastError.esp_tls_cert_verify_flags));reply(OUT);
@@ -65,11 +65,10 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         if(_this->lastError.connect_return_code == MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED) connect_return_code = (char*)"MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED";
         snprintf(OUT,LONG,"%-30s : %s","connect_return_code",connect_return_code);
         reply("\r\n\r\nSubscriptions:\r\n");
-        snprintf(OUT,LONG, "%-30s : %s\r\n","NAME","QOS");reply(OUT);
         for (auto const& x : _this->subscriptions){
             snprintf(OUT,LONG, "%-30s : %d\r\n",x.first.c_str(),x.second);reply(OUT);
         }
-    }, NULL, "📡 Shows MQTT connection Status",false);
+    }, NULL, "📡  MQTT Status",false);
 
 }
 
@@ -106,7 +105,7 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_CONNECTED");
             _this->tk->events.emit("MQTT_EVENT_CONNECTED");
             _this->tk->status[STATUS_BIT_MQTT] = true;
-            esp_mqtt_client_subscribe(_this->client, _this->commandTopic.c_str(), 2);
+            if(!_this->commandTopic.empty()) esp_mqtt_client_subscribe(_this->client, _this->commandTopic.c_str(), 2);
             for (auto const& x : _this->subscriptions){
                 esp_mqtt_client_subscribe(_this->client, x.first.c_str(), x.second);
             }
@@ -134,23 +133,16 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
             //printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
             //printf("DATA=%.*s\r\n", event->data_len, event->data);
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DATA");
-            _this->tk->events.emit("MQTT_EVENT_DATA");
+            _this->tk->events.emit("MQTT_EVENT_DATA");  
 
+            // Add Zero Termination
             char* topic = (char*) malloc(event->topic_len + 1);
             char* data  = (char*) malloc(event->data_len  + 1);
             snprintf(topic, event->topic_len + 1, "%.*s", event->topic_len, event->topic);
             snprintf(data,  event->data_len + 1, "%.*s", event->data_len, event->data);
-            
-            // Add String Zero Termination
-            //char* topic = (char*) malloc(event->topic_len + 1);
-            //char* data  = (char*) malloc(event->data_len  + 1);
-            //if(event->topic_len > 0) xthal_memcpy(topic, event->topic, event->topic_len + 1);
-            //if(event->data_len  > 0) xthal_memcpy(data,  event->data,  event->data_len  + 1);
-            //topic[event->topic_len] = '\0';
-            //data[event->data_len]   = '\0';
 
-            //Send Commands Topic
-            if(_this->commandTopic == std::string(topic)){
+            // Send Commands Topic
+            if(!_this->commandTopic.empty() && _this->commandTopic == std::string(topic)){
                 simple_cmd_t simple_cmd{
                     strdup(data), 
                     print
@@ -158,10 +150,10 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
                 _this->tk->events.emit(EVT_TK_COMMAND,(void*)&simple_cmd,sizeof(simple_cmd_t));
             }
 
-            //Send Event
+            // Send Event
             _this->tk->events.emit(topic,(void*)data,event->data_len  + 1);
 
-            //CleanUp
+            // CleanUp
             delete topic;
             delete data;
             break;
@@ -200,7 +192,7 @@ void Mqtt::unsubscribe(std::string topic){
 }; 
 
 void Mqtt::print(const char* text){
-    _this->publish(_this->commandTopic + "/reply",text,2,0);
+    if(!_this->commandTopic.empty()) _this->publish(_this->commandTopic + "/reply",text,2,0);
 };
 
 #endif

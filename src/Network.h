@@ -99,14 +99,14 @@ class Network{
 
         //CONFIG
         bool        ap_enable{false};
-        std::string ap_password{""};
+        std::string ap_password{};
         bool        sta_enable{false};
-        std::string sta_network{""};
-        std::string sta_password{""};
-        std::string sta_ip{"0.0.0.0"};
-        std::string sta_subnet{"0.0.0.0"};
-        std::string sta_gateway{"0.0.0.0"};
-        std::string sta_dns{"0.0.0.0"};
+        std::string sta_network{};
+        std::string sta_password{};
+        std::string sta_ip{};
+        std::string sta_subnet{};
+        std::string sta_gateway{};
+        std::string sta_dns{};
         bool        telnet_enable{true};
         int         ps_type{1};         // WIFI_PS_NONE, WIFI_PS_MIN_MODEM, WIFI_PS_MAX_MODEM
     
