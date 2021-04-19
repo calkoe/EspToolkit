@@ -24,6 +24,8 @@
 class Telnet{
 
     private:
+
+        static Telnet* _this;
         PostOffice<std::string>* events;
         char* commandTopic;
         char* broadcastTopic;
@@ -37,6 +39,6 @@ class Telnet{
     public:
 
         Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
-        static int clientSock;
+        int clientSock;
         static void print(const char* text);
 };

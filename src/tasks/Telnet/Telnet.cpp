@@ -2,18 +2,20 @@
 
 #include "Telnet.h"
 
-int Telnet::clientSock{-1};
+Telnet* Telnet::_this{nullptr};
+
 
 Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic):events{events},commandTopic{commandTopic}{
+    if(_this) return;
+    _this = this;
 
-     // EVT_TK_BROADCAST -> SERIAL
+    // EVT_TK_BROADCAST -> SERIAL
     events->on(0,broadcastTopic,[](void* ctx, void* arg){
         print((char*)arg);
     },NULL);
 
     // TASK
     xTaskCreate([](void* ctx){
-        Telnet* _this = (Telnet*) ctx;
         struct sockaddr_in clientAddress;
         struct sockaddr_in serverAddress;
 
@@ -42,13 +44,12 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
             vTaskDelete(NULL);
         }
 
-
         while (1) {
             // Listen for a new client connection.
             socklen_t clientAddressLength = sizeof(clientAddress);
-            clientSock = accept(sock, (struct sockaddr *)&clientAddress, &clientAddressLength);
-            if (clientSock < 0) {
-                ESP_LOGE(TAG, "accept: %d %s", clientSock, strerror(errno));
+            _this->clientSock = accept(sock, (struct sockaddr *)&clientAddress, &clientAddressLength);
+            if (_this->clientSock < 0) {
+                ESP_LOGE(TAG, "accept: %d %s", _this->clientSock, strerror(errno));
                 continue;
             }
 
@@ -64,7 +65,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
             while(1) {
                 static bool first{true};
                 memset(buffer, '\0', BUFFER_SIZE);
-                ssize_t sizeRead = recv(clientSock, buffer, BUFFER_SIZE, 0);
+                ssize_t sizeRead = recv(_this->clientSock, buffer, BUFFER_SIZE, 0);
                 if (sizeRead < 0) {
                     ESP_LOGE(TAG, "recv: %d %s", sizeRead, strerror(errno));
                     break;
@@ -84,17 +85,17 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
                 vTaskDelay(10);
             }
             free(buffer);
-            close(clientSock);
-            clientSock = -1;
+            close(_this->clientSock);
+            _this->clientSock = -1;
         }
 
 
-    }, "telnet", 2048, this, 0, NULL);
+    }, "telnet", 2048, NULL, 0, NULL);
     
 }
 
 void Telnet::print(const char* text){
-    send(clientSock, text, strlen(text), 0);
+    send(_this->clientSock, text, strlen(text), 0);
 } 
 
 

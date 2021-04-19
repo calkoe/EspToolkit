@@ -2,7 +2,11 @@
 
 #include <Network.h>
 
+Network* Network::_this{nullptr};
+
 Network::Network(EspToolkit* tk):tk{tk}{
+    if(_this) return;
+    _this = this;
 
     // TCPIP
     tcpip_adapter_init();
@@ -90,28 +94,32 @@ Network::Network(EspToolkit* tk):tk{tk}{
         if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");
     },this,  "📶 Shows System / Wifi status");
     
-    /*
     tk->commandAdd("wifiOta",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-        Network*    network = (Network*) c;
-        EspToolkit* tk      = (EspToolkit*) network->tk;
-        char OUT[LONG];
 
         if(parCnt==2){
 
-
-            FILE* f = fopen("/spiffs/localhost.pem", "r");
-            if (f == NULL) {
-                ESP_LOGE(TAG, "Failed to open file for reading");
+            // Load cert_pem from SPIFFS 
+            FILE* cert_pem_f = fopen("/spiffs/ca_cert.pem", "r");
+            if (cert_pem_f == NULL) {
+                ESP_LOGE(TAG, "Failed to open file (/spiffs/ca_cert.pem) for reading");
                 return;
             }
-            char* line = new char[5000];
-            fgets(line, sizeof(line), f);
-            fclose(f);
+            fseek(cert_pem_f, 0, SEEK_END);
+            size_t cert_pem_size = ftell(cert_pem_f);
+            char* cert_pem = new char[cert_pem_size+1];
+            rewind(cert_pem_f);
+            fread(cert_pem, sizeof(char), cert_pem_size, cert_pem_f);
+            fclose(cert_pem_f);
+            cert_pem[cert_pem_size] = '\0';
 
+            // Config OTA
             esp_http_client_config_t config = {};
             config.url = param[1];
-            config.cert_pem = line;
-            config.skip_cert_common_name_check=true;
+            config.transport_type = HTTP_TRANSPORT_OVER_TCP;
+            config.cert_pem = cert_pem;
+            config.skip_cert_common_name_check = true;
+
+            // Run OTA
             esp_err_t ret = esp_https_ota(&config);
             if (ret == ESP_OK) {
                 esp_restart();
@@ -119,12 +127,13 @@ Network::Network(EspToolkit* tk):tk{tk}{
                 reply(strerror(ret));reply(" - Firmware upgrade failed\r\n");
             }
 
+            delete[] cert_pem;
+
         }else{
-            tk->commandMan("wifiOta",reply);
+            _this->tk->commandMan("wifiOta",reply);
         }
     },this,"📶 [url] | load and install new firmware from URL (https only!)");
-    */
-   
+
     tk->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    _this   = (Network*) ctx;

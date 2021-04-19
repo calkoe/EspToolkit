@@ -17,10 +17,15 @@ class Mqtt{
 
     private:
 
+        static Mqtt* _this;
         EspToolkit* tk;
-        esp_mqtt_client_handle_t client{NULL};
+        esp_mqtt_client_handle_t client{nullptr};
         std::map<std::string,int> subscriptions;
         static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t);
+        struct simple_cmd_t{
+            char* payload;
+            void  (*reply)(const char* str);
+        };
 
     public:
 
@@ -31,12 +36,14 @@ class Mqtt{
         void subscribe(std::string topic, int qos = 0);
         void unsubscribe(std::string topic); 
         esp_mqtt_error_codes_t lastError{};
+        static void print(const char* text);
 
         //LOW LEVEL CONFIG
         esp_mqtt_client_config_t    config{};
 
         //CONFIG
         bool                        enable{true};
+        std::string                 commandTopic{};
         std::string                 uri{"mqtt://test.mosquitto.org:1883"};
 
 };

@@ -3,6 +3,7 @@
 #define _GLIBCXX_USE_C99
 
 #include <string>
+#include <fstream>
 #include <iostream>
 #include <sys/unistd.h>
 #include "freertos/FreeRTOS.h"

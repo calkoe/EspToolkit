@@ -265,11 +265,6 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(const char*), char**
             vTaskDelay(1000);
         }
         return true;
-    }else if(!strncmp(name,"lock",SHORT)){
-        reply("SYSTEM LOCKED!\r\n");
-        locked=true;
-        variableLoad(true);
-        return true;
     }
 
     AOS_CMD* i{aos_cmd};
@@ -498,7 +493,9 @@ void EspToolkit::commandAddDefault(){
     },NULL,"",true);
 
     commandAdd("lock",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-
+        reply("SYSTEM LOCKED!\r\n");
+        locked=true;
+        variableLoad(true);
     },NULL,"🖥  lock current shell");
 
     commandAdd("reboot",[](void*, void (*reply)(const char*), char** param,uint8_t parCnt){

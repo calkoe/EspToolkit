@@ -20,6 +20,7 @@ class Uart{
 
     private:
 
+        static Uart* _this;
         PostOffice<std::string>* events;
         LineIn<128> lineIn;
         const char* commandTopic;

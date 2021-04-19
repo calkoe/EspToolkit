@@ -29,6 +29,7 @@ class Network{
 
     private:
 
+        static Network* _this;
         EspToolkit* tk;
         int16_t  calcRSSI(int32_t);
 
