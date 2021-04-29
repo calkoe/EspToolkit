@@ -530,6 +530,11 @@ void EspToolkit::commandAddDefault(){
             snprintf(OUT,LONG,"%-30s : %d Bytes total, %d Bytes used\r\n","SPIFFS",total,used);reply(OUT);
         }
         snprintf(OUT,LONG,"%-30s : %f Hours\r\n","UPTIME",(double)esp_timer_get_time()/1000.0/1000.0/60.0/60.0);reply(OUT);
+        time_t rawtime;
+        struct tm * timeinfo;
+        time ( &rawtime );
+        timeinfo = localtime ( &rawtime );
+        snprintf(OUT,LONG,"%-30s : %s","SYSTEM TIME",asctime(timeinfo));reply(OUT);
     },NULL,"🖥  Print system information");
 
     commandAdd("timers", [](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){

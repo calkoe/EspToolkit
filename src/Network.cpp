@@ -236,7 +236,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
 void Network::commit(){
 
-    //Config
+    // Config
     tk->status[STATUS_BIT_NETWORK] = true;
     bool sta = sta_enable && !sta_network.empty();
     bool ap  = ap_enable  && !tk->hostname.empty();
@@ -274,10 +274,16 @@ void Network::commit(){
         tk->status[STATUS_BIT_NETWORK] = false;
     }
 
+    // MDNS
     mdns_init();
     mdns_hostname_set(_this->tk->hostname.c_str());
     mdns_instance_name_set(_this->tk->hostname.c_str());
     mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
+
+    // SNTP
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
 
     esp_wifi_start();
 
