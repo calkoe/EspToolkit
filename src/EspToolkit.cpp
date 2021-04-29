@@ -14,12 +14,12 @@ char                    EspToolkit::OUT[LONG]{0};
 bool                    EspToolkit::status[5]{true};
 int                     EspToolkit::cpuFreq{2};
 int                     EspToolkit::logLevel{0};
-int                     EspToolkit::watchdog{15};
+int                     EspToolkit::watchdog{60};
 std::string             EspToolkit::date{__DATE__ " " __TIME__};
 std::string             EspToolkit::hostname{"EspToolkit"};
 std::string             EspToolkit::password{"tk"};
 bool                    EspToolkit::locked{false};
-std::string             EspToolkit::firmware{"EspToolkit Generic"};
+std::string             EspToolkit::firmware{FIRMWARE};
 
 EspToolkit::EspToolkit(){
 

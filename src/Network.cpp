@@ -20,13 +20,12 @@ Network::Network(EspToolkit* tk):tk{tk}{
     // BUTTON TOGGLE AP
     tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
     tk->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
-        Network*    network = (Network*) ctx;
-        EspToolkit* tk      = (EspToolkit*) network->tk;
+        Network*    _this = (Network*) ctx;
         if(!*(bool*)arg){
-            ESP_LOGE(TAG, "TOGGLE AP");
-            network->ap_enable = !network->ap_enable;
-            tk->variableLoad(true);
-            esp_restart();
+            ESP_LOGI(TAG, "TOGGLE AP");
+            _this->ap_enable = !_this->ap_enable;
+            _this->tk->variableLoad(true);
+            _this->commit();
         }
     },this);
 
@@ -40,7 +39,6 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("wifi/gateway",      sta_gateway,       "📶 Gateway");
     tk->variableAdd("wifi/dns",          sta_dns,           "📶 DNS");
     tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot-Mode");
-    tk->variableAdd("hotspot/password",  ap_password,       "📶 Hotspot Password");
     tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
 
     // COMMANDS
@@ -136,28 +134,21 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     tk->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
-        Network*    _this   = (Network*) ctx;
-        EspToolkit* tk      = (EspToolkit*) _this->tk;
+        Network*    _this = (Network*) ctx;
         uint16_t number = DEFAULT_SCAN_LIST_SIZE;
         wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
         uint16_t ap_count = 0;
         memset(ap_info, 0, sizeof(ap_info));
-        wifi_scan_config_t config;
-        config.ssid = 0;
-        config.bssid = 0;
-        config.channel = 0;
-        config.show_hidden = true;
-        config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
-        config.scan_time.active.min = 100;
-        config.scan_time.active.max = 300;
+        wifi_scan_config_t config{};
         reply((char*)"Scaning Networks...\r\n");
-        if(esp_wifi_scan_start(&config, true) == ESP_OK) {
-            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
-            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_count));
+        esp_err_t scanResult = esp_wifi_scan_start(&config, true);
+        if(scanResult == ESP_OK) {
+            esp_wifi_scan_get_ap_records(&number, ap_info);
+            esp_wifi_scan_get_ap_num(&ap_count);
             for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
-                char* authmode{""};
-                char* pairwise_cipher{""};
-                char* group_cipher{""};
+                const char* authmode{""};
+                const char* pairwise_cipher{""};
+                const char* group_cipher{""};
                 switch (ap_info[i].authmode) {
                     case WIFI_AUTH_OPEN:            authmode = (char*)"WIFI_AUTH_OPEN";break;
                     case WIFI_AUTH_WEP:             authmode = (char*)"WIFI_AUTH_WEP";break;
@@ -192,7 +183,8 @@ Network::Network(EspToolkit* tk):tk{tk}{
                 snprintf(OUT,LONG,"%-30s : %-3d dBm (%-3d%%) | Authmode: %s | Pairwise_cipher: %s | Group_cipher: %s\r\n",ap_info[i].ssid, ap_info[i].rssi, _this->calcRSSI(ap_info[i].rssi),authmode,pairwise_cipher,group_cipher);reply(OUT);
             }
         }else{
-            reply((char*)"Scaning failed.");
+            snprintf(OUT,LONG,"Scaning failed: %s\r\n",esp_err_to_name(scanResult));
+            reply(OUT);
         }
     },this, "📶 Scans for nearby networks");
 
@@ -249,7 +241,7 @@ void Network::commit(){
     bool sta = sta_enable && !sta_network.empty();
     bool ap  = ap_enable  && !tk->hostname.empty();
     tk->hostname.copy((char*)config_ap.ap.ssid,32,0);
-    ap_password.copy((char*)config_ap.ap.password,64,0);
+    tk->password.copy((char*)config_ap.ap.password,64,0);
     sta_network.copy((char*)config_sta.sta.ssid,32,0);
     sta_password.copy((char*)config_sta.sta.password,64,0);
 
@@ -263,7 +255,6 @@ void Network::commit(){
 
     if(ap){
         esp_wifi_set_config(WIFI_IF_AP, &config_ap);
-        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP,  tk->hostname.c_str());
         tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP);
     }
 
@@ -283,14 +274,14 @@ void Network::commit(){
         tk->status[STATUS_BIT_NETWORK] = false;
     }
 
-    if(ap || sta){
-        esp_wifi_start();
-        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, tk->hostname.c_str());
-        mdns_init();
-        mdns_hostname_set(tk->hostname.c_str());
-        mdns_instance_name_set(tk->hostname.c_str());
-        mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
-    }
+    mdns_init();
+    mdns_hostname_set(_this->tk->hostname.c_str());
+    mdns_instance_name_set(_this->tk->hostname.c_str());
+    mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
+
+    esp_wifi_start();
+
+    ESP_LOGI(TAG, "COMMIT FINISHED");
 
 };
 
@@ -298,9 +289,32 @@ esp_err_t Network::wifi_event_handler(void *ctx, system_event_t *event)
 { 
     Network* _this = (Network*)ctx;
     switch (event->event_id) {
+        case SYSTEM_EVENT_AP_START:
+            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_START");
+            _this->tk->events.emit("SYSTEM_EVENT_AP_START");
+            tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, _this->tk->hostname.c_str());
+            break;
+        case SYSTEM_EVENT_AP_STACONNECTED:
+            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STACONNECTED");
+            _this->tk->events.emit("SYSTEM_EVENT_AP_STACONNECTED");
+            break;
+        case SYSTEM_EVENT_AP_STAIPASSIGNED:
+            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STAIPASSIGNED");
+            _this->tk->events.emit("SYSTEM_EVENT_AP_STAIPASSIGNED");
+            break;
+        case SYSTEM_EVENT_AP_STADISCONNECTED:
+            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STADISCONNECTED");
+            _this->tk->events.emit("SYSTEM_EVENT_AP_STADISCONNECTED");
+            break;
+        case SYSTEM_EVENT_AP_STOP:
+            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STOP");
+            _this->tk->events.emit("SYSTEM_EVENT_AP_STOP");
+            break;
+
         case SYSTEM_EVENT_STA_START:
             ESP_LOGI(TAG, "SYSTEM_EVENT_STA_START");
             _this->tk->events.emit("SYSTEM_EVENT_STA_START");
+            tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, _this->tk->hostname.c_str());
             esp_wifi_connect();
             break;
         case SYSTEM_EVENT_STA_CONNECTED:
@@ -331,6 +345,7 @@ esp_err_t Network::wifi_event_handler(void *ctx, system_event_t *event)
         default:
             break;
     }
+    mdns_handle_system_event(ctx, event);
     return ESP_OK;
 }
 

@@ -99,7 +99,6 @@ class Network{
 
         //CONFIG
         bool        ap_enable{false};
-        std::string ap_password{};
         bool        sta_enable{false};
         std::string sta_network{};
         std::string sta_password{};
