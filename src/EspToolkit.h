@@ -23,7 +23,7 @@
 #include "tasks/Uart/Uart.h"
 
 #define TAG "toolkit"
-#define FIRMWARE "EspToolkit 1.0.0"
+#define FIRMWARE "EspToolkit 1.1.0"
 
 //  Definitions
 #define SHORT               128   

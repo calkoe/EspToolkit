@@ -31,14 +31,15 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     // CONFIG VARIABLES
     tk->variableAdd("wifi/powerSafe",    ps_type,           "📶 WiFI Power Safe: 0=WIFI_PS_NONE | 1=WIFI_PS_MIN_MODEM | 2=WIFI_PS_MAX_MODEM");
-    tk->variableAdd("wifi/enable",       sta_enable,        "📶 Enable WiFi STA-Mode");
+    tk->variableAdd("wifi/enable",       sta_enable,        "📶 Enable WiFi STA");
     tk->variableAdd("wifi/network",      sta_network,       "📶 Network SSID");
     tk->variableAdd("wifi/password",     sta_password,      "📶 Network Password");
-    tk->variableAdd("wifi/ip",           sta_ip,            "📶 IP (leave blank to use DHCP)");
-    tk->variableAdd("wifi/subnet",       sta_subnet,        "📶 Subnet");
-    tk->variableAdd("wifi/gateway",      sta_gateway,       "📶 Gateway");
-    tk->variableAdd("wifi/dns",          sta_dns,           "📶 DNS");
-    tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot-Mode");
+    tk->variableAdd("wifi/ip",           sta_ip,            "📶 IP      (leave blank to use DHCP)");
+    tk->variableAdd("wifi/subnet",       sta_subnet,        "📶 Subnet  (leave blank to use DHCP)");
+    tk->variableAdd("wifi/gateway",      sta_gateway,       "📶 Gateway (leave blank to use DHCP)");
+    tk->variableAdd("wifi/dns",          sta_dns,           "📶 DNS     (leave blank to use DHCP)");
+    tk->variableAdd("wifi/sntp",         sta_sntp,          "📶 SNTP Server for time synchronisation (leave blank to disable)");
+    tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot");
     tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
 
     // COMMANDS
@@ -62,7 +63,6 @@ Network::Network(EspToolkit* tk):tk{tk}{
             }
         };
         snprintf(OUT,LONG,"%-30s : %s\r\n","Mode",m);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",tk->hostname.c_str());reply(OUT);
         tcpip_adapter_ip_info_t ipInfoAp, ipInfoSta; 
         tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfoAp);
@@ -74,21 +74,25 @@ Network::Network(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP MASK",IP2STR(&ipInfoAp.netmask));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP GW",IP2STR(&ipInfoAp.gw));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %02X:%02X:%02X:%02X:%02X:%02X\r\n", "AP MAC", macAp[0], macAp[1], macAp[2], macAp[3], macAp[4], macAp[5]);reply(OUT);
+        wifi_sta_list_t clients;
+        esp_wifi_ap_get_sta_list(&clients); 
+        snprintf(OUT,LONG,"%-30s : %d\r\n","AP Stations",clients.num);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","STA Connected",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA IP",IP2STR(&ipInfoSta.ip));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA MASK",IP2STR(&ipInfoSta.netmask));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA GW",IP2STR(&ipInfoSta.gw));reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA DNS1",IP2STR(&dns_getserver(0)->u_addr.ip4));reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA DNS2",IP2STR(&dns_getserver(1)->u_addr.ip4));reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","STA DNS",IP2STR(&dns_getserver(0)->u_addr.ip4));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %02X:%02X:%02X:%02X:%02X:%02X\r\n", "STA MAC", macSta[0], macSta[1], macSta[2], macSta[3], macSta[4], macSta[5]);reply(OUT);
         wifi_ap_record_t infoSta;
         esp_wifi_sta_get_ap_info(&infoSta);
         snprintf(OUT,LONG,"%-30s : %02X:%02X:%02X:%02X:%02X:%02X\r\n","STA BSSID",infoSta.bssid[0], infoSta.bssid[1], infoSta.bssid[2], infoSta.bssid[3], infoSta.bssid[4], infoSta.bssid[5]);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d dBm (%d%%)\r\n","RSSI",infoSta.rssi,_this->calcRSSI(infoSta.rssi));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d\r\n","Primary channel",infoSta.primary);reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %d\r\n","Secondary channel",infoSta.second);reply(OUT);
-         wifi_sta_list_t clients;
-        esp_wifi_ap_get_sta_list(&clients); 
-        snprintf(OUT,LONG,"%-30s : %d\r\n","AP Stations",clients.num);reply(OUT);
+        const char* wifi_second_chan;
+        if(infoSta.second == WIFI_SECOND_CHAN_NONE)  wifi_second_chan = "WIFI_SECOND_CHAN_NONE";
+        if(infoSta.second == WIFI_SECOND_CHAN_ABOVE) wifi_second_chan = "WIFI_SECOND_CHAN_ABOVE";
+        if(infoSta.second == WIFI_SECOND_CHAN_BELOW) wifi_second_chan = "WIFI_SECOND_CHAN_BELOW";
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Secondary channel",wifi_second_chan);reply(OUT);
         if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");
     },this,  "📶 Wifi status");
     
@@ -208,7 +212,6 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
     
-    
     tk->commandAdd("wifiDns",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    _this = (Network*) ctx;
@@ -230,7 +233,6 @@ Network::Network(EspToolkit* tk):tk{tk}{
             tk->commandMan("wifiDns",reply);
         }
     },this,  "📶 [ip] | resolve DNS");
-    
 
 };
 
@@ -281,12 +283,13 @@ void Network::commit(){
     mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
 
     // SNTP
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_init();
+    if(!sta_sntp.empty()){
+        sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        sntp_setservername(0, (char*)sta_sntp.c_str());
+        sntp_init();
+    }
 
     esp_wifi_start();
-
     ESP_LOGI(TAG, "COMMIT FINISHED");
 
 };

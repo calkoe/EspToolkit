@@ -107,6 +107,7 @@ class Network{
         std::string sta_subnet{};
         std::string sta_gateway{};
         std::string sta_dns{};
+        std::string sta_sntp{};
         bool        telnet_enable{true};
         int         ps_type{1};         // WIFI_PS_NONE, WIFI_PS_MIN_MODEM, WIFI_PS_MAX_MODEM
     

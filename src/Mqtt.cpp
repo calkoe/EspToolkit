@@ -92,6 +92,8 @@ void Mqtt::commit(){
         esp_mqtt_client_start(client);
     } 
 
+    ESP_LOGI(TAG, "COMMIT FINISHED");
+
 }
 
 esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
@@ -128,10 +130,6 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
             _this->tk->events.emit("MQTT_EVENT_PUBLISHED");
             break;
         case MQTT_EVENT_DATA:{
-            //std::cout << "event->topic_len: " << event->topic_len << std::endl;
-            //std::cout << "event->data_len: "  << event->data_len  << std::endl;
-            //printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-            //printf("DATA=%.*s\r\n", event->data_len, event->data);
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DATA");
             _this->tk->events.emit("MQTT_EVENT_DATA");  
 
@@ -141,7 +139,7 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
             snprintf(topic, event->topic_len + 1, "%.*s", event->topic_len, event->topic);
             snprintf(data,  event->data_len + 1, "%.*s", event->data_len, event->data);
 
-            // Send Commands Topic
+            // Commands Topic
             if(!_this->commandTopic.empty() && _this->commandTopic == std::string(topic)){
                 simple_cmd_t simple_cmd{
                     strdup(data), 
@@ -150,7 +148,7 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
                 _this->tk->events.emit(EVT_TK_COMMAND,(void*)&simple_cmd,sizeof(simple_cmd_t));
             }
 
-            // Send Event
+            // Event
             _this->tk->events.emit(topic,(void*)data,event->data_len  + 1);
 
             // CleanUp
