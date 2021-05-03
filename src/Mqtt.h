@@ -42,7 +42,7 @@ class Mqtt{
         esp_mqtt_client_config_t    config{};
 
         //CONFIG
-        bool                        enable{true};
+        bool                        enable{false};
         std::string                 commandTopic{};
         std::string                 uri{"mqtt://test.mosquitto.org:1883"};
 

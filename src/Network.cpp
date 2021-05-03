@@ -17,7 +17,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         telnet = new Telnet(&(this->tk->events),(char*)EVT_TK_COMMAND,(char*)EVT_TK_BROADCAST);
     }
 
-    // BUTTON TOGGLE AP
+    // AP BUTTON TOGGLE
     tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
     tk->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
         Network*    _this = (Network*) ctx;
@@ -28,6 +28,22 @@ Network::Network(EspToolkit* tk):tk{tk}{
             _this->commit();
         }
     },this);
+
+    // AP Autostart
+    if(_this->ap_autostart){
+        tk->timer.setInterval([](void* ctx){
+            Network*    _this = (Network*) ctx;
+            if(!_this->ap_enable && !_this->ap_autostart_triggered && (!_this->sta_enable || !_this->tk->status[STATUS_BIT_NETWORK])){
+                _this->ap_autostart_triggered = true;
+                _this->ap_enable = true;
+                _this->commit();
+            }else if(_this->ap_enable && _this->ap_autostart_triggered && _this->sta_enable && _this->tk->status[STATUS_BIT_NETWORK]){
+                _this->ap_autostart_triggered = false;
+                _this->ap_enable = false;
+                _this->commit();
+            }
+        },this,10000,"hotspot autostart");
+    }
 
     // CONFIG VARIABLES
     tk->variableAdd("wifi/powerSafe",    ps_type,           "📶 WiFI Power Safe: 0=WIFI_PS_NONE | 1=WIFI_PS_MIN_MODEM | 2=WIFI_PS_MAX_MODEM");
@@ -40,6 +56,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("wifi/dns",          sta_dns,           "📶 DNS     (leave blank to use DHCP)");
     tk->variableAdd("wifi/sntp",         sta_sntp,          "📶 SNTP Server for time synchronisation (leave blank to disable)");
     tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot");
+    tk->variableAdd("hotspot/autostart", ap_autostart,      "📶 Start Hotspot if threre is no STA connection aviable");
     tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
 
     // COMMANDS
@@ -48,7 +65,6 @@ Network::Network(EspToolkit* tk):tk{tk}{
         EspToolkit* tk      = (EspToolkit*) _this->tk;
         char OUT[LONG];
         reply((char*)"📶 Newtwork:\r\n");
-
         wifi_mode_t mode;
         const char* m;
         if(esp_wifi_get_mode(&mode) == ESP_ERR_WIFI_NOT_INIT){
@@ -139,6 +155,9 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[LONG];
         Network*    _this = (Network*) ctx;
+        wifi_mode_t mode;
+        esp_wifi_get_mode(&mode);
+        if(mode == WIFI_MODE_NULL){esp_wifi_set_mode(WIFI_MODE_STA);}
         uint16_t number = DEFAULT_SCAN_LIST_SIZE;
         wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
         uint16_t ap_count = 0;

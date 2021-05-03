@@ -43,6 +43,7 @@ class Network{
         static   esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
         void     getApIpStr(char* buf);
         void     getStaIpStr(char* buf);
+        bool     ap_autostart_triggered{false};
 
         //LOW LEVEL CONFIG
         wifi_init_config_t config_init = {
@@ -100,6 +101,7 @@ class Network{
 
         //CONFIG
         bool        ap_enable{false};
+        bool        ap_autostart{true};
         bool        sta_enable{false};
         std::string sta_network{};
         std::string sta_password{};
