@@ -1,5 +1,3 @@
-#if defined ESP32
-
 #include <Network.h>
 
 Network* Network::_this{nullptr};
@@ -8,9 +6,15 @@ Network::Network(EspToolkit* tk):tk{tk}{
     if(_this) return;
     _this = this;
 
-    // TCPIP
-    tcpip_adapter_init();
-    esp_event_loop_init(wifi_event_handler, this);
+    // NETIF
+    esp_netif_init();
+    esp_event_loop_create_default();
+    esp_event_handler_instance_t instance_wifi_any_id;
+    esp_event_handler_instance_t instance_ip_any_id;
+    esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,  &wifi_event_handler, this,   &instance_wifi_any_id);
+    esp_event_handler_instance_register(IP_EVENT,   ESP_EVENT_ANY_ID,  &wifi_event_handler, this,   &instance_ip_any_id);
+    netif_ap  = esp_netif_create_default_wifi_ap();
+    netif_sta = esp_netif_create_default_wifi_sta();
 
     // TELNET
     if(telnet_enable){
@@ -22,7 +26,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
         Network*    _this = (Network*) ctx;
         if(!*(bool*)arg){
-            ESP_LOGI(TAG, "TOGGLE AP");
+            ESP_LOGI("NETWORK", "TOGGLE AP");
             _this->ap_enable = !_this->ap_enable;
             _this->tk->variableLoad(true);
             _this->commit();
@@ -80,9 +84,9 @@ Network::Network(EspToolkit* tk):tk{tk}{
         };
         snprintf(OUT,LONG,"%-30s : %s\r\n","Mode",m);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",tk->hostname.c_str());reply(OUT);
-        tcpip_adapter_ip_info_t ipInfoAp, ipInfoSta; 
-        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfoAp);
-        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfoSta);
+        esp_netif_ip_info_t ipInfoAp, ipInfoSta;
+        esp_netif_get_ip_info(_this->netif_ap, &ipInfoAp);
+        esp_netif_get_ip_info(_this->netif_sta, &ipInfoSta);
         uint8_t macAp[6], macSta[6];
         esp_wifi_get_mac(WIFI_IF_AP, macAp);
         esp_wifi_get_mac(WIFI_IF_STA, macSta);
@@ -119,7 +123,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
             // Load cert_pem from SPIFFS 
             FILE* cert_pem_f = fopen("/spiffs/ca_cert.pem", "r");
             if (cert_pem_f == NULL) {
-                ESP_LOGE(TAG, "Failed to open file (/spiffs/ca_cert.pem) for reading");
+                ESP_LOGE("NETWORK", "Failed to open file (/spiffs/ca_cert.pem) for reading");
                 return;
             }
             fseek(cert_pem_f, 0, SEEK_END);
@@ -236,12 +240,12 @@ Network::Network(EspToolkit* tk):tk{tk}{
         Network*    _this = (Network*) ctx;
         EspToolkit* tk    = (EspToolkit*) _this->tk;
         if(parCnt>=2){
-            ip_addr_t ip_Addr{0};
+            ip_addr_t ip_Addr;
             dns_gethostbyname(param[1], &ip_Addr, [](const char *name, const ip_addr_t* ipaddr, void *callback_arg){
                 if(ipaddr) *(ip_addr_t*)callback_arg = *ipaddr;
             }, &ip_Addr);
             for(uint8_t i{0};i<10;i++){
-                if((u32_t)ip_Addr.u_addr.ip4.addr){
+                if((uint32_t)ip_Addr.u_addr.ip4.addr){
                     snprintf(OUT,LONG,"✅ DNS Resolved %s -> %d.%d.%d.%d\r\n",param[1],IP2STR(&ip_Addr.u_addr.ip4));reply(OUT);
                     return;
                 }
@@ -266,6 +270,7 @@ void Network::commit(){
     sta_network.copy((char*)config_sta.sta.ssid,32,0);
     sta_password.copy((char*)config_sta.sta.password,64,0);
 
+    wifi_init_config_t config_init = WIFI_INIT_CONFIG_DEFAULT();
     esp_wifi_init(&config_init);
     esp_wifi_set_ps((wifi_ps_type_t)ps_type);
 
@@ -276,21 +281,23 @@ void Network::commit(){
 
     if(ap){
         esp_wifi_set_config(WIFI_IF_AP, &config_ap);
-        tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP);
+        esp_netif_set_hostname(netif_ap,_this->tk->hostname.c_str());
     }
 
     if(sta){
         esp_wifi_set_config(WIFI_IF_STA, &config_sta);
+        esp_netif_set_hostname(netif_sta,_this->tk->hostname.c_str());
         if(!sta_ip.empty() && !sta_subnet.empty() && !sta_gateway.empty() && !sta_dns.empty()){
-            tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
-            tcpip_adapter_ip_info_t ip_info;
-            ip4addr_aton(sta_ip.c_str(), &ip_info.ip);
-            ip4addr_aton(sta_gateway.c_str(), &ip_info.gw);
-            ip4addr_aton(sta_subnet.c_str(),   &ip_info.netmask);
-            tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
-            tcpip_adapter_dns_info_t dns_info;
-            ipaddr_aton(sta_dns.c_str(),&dns_info.ip);
-            tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, TCPIP_ADAPTER_DNS_MAIN, &dns_info);
+            esp_netif_dhcps_stop(netif_sta);
+            esp_netif_ip_info_t ip_info;
+            ip_info.ip.addr       = static_cast<uint32_t>(ipaddr_addr(sta_ip.c_str()));
+            ip_info.gw.addr       = static_cast<uint32_t>(ipaddr_addr(sta_gateway.c_str()));
+            ip_info.netmask.addr  = static_cast<uint32_t>(ipaddr_addr(sta_subnet.c_str()));
+            esp_netif_set_ip_info(netif_sta,&ip_info);
+            esp_netif_dns_info_t dns;
+	        dns.ip.type = ESP_IPADDR_TYPE_V4;
+	        dns.ip.u_addr.ip4.addr = static_cast<uint32_t>(ipaddr_addr(sta_dns.c_str()));
+            esp_netif_set_dns_info(netif_sta,ESP_NETIF_DNS_MAIN,&dns);
         }
         tk->status[STATUS_BIT_NETWORK] = false;
     }
@@ -305,92 +312,90 @@ void Network::commit(){
     if(!sta_sntp.empty()){
         sntp_setoperatingmode(SNTP_OPMODE_POLL);
         sntp_setservername(0, (char*)sta_sntp.c_str());
+        sntp_set_sync_interval(10 * 60 * 1000);
         sntp_init();
     }
 
     esp_wifi_start();
-    ESP_LOGI(TAG, "COMMIT FINISHED");
+    ESP_LOGI("NETWORK", "COMMIT FINISHED");
 
 };
 
-esp_err_t Network::wifi_event_handler(void *ctx, system_event_t *event)
+void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t event_id, void* event_data)
 { 
     Network* _this = (Network*)ctx;
-    switch (event->event_id) {
-        case SYSTEM_EVENT_AP_START:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_START");
-            _this->tk->events.emit("SYSTEM_EVENT_AP_START");
-            tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, _this->tk->hostname.c_str());
+    switch (event_id) {
+        case WIFI_EVENT_AP_START:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_AP_START");
+            _this->tk->events.emit("WIFI_EVENT_AP_START");
             break;
         case SYSTEM_EVENT_AP_STACONNECTED:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STACONNECTED");
+            ESP_LOGI("NETWORK", "SYSTEM_EVENT_AP_STACONNECTED");
             _this->tk->events.emit("SYSTEM_EVENT_AP_STACONNECTED");
             break;
-        case SYSTEM_EVENT_AP_STAIPASSIGNED:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STAIPASSIGNED");
-            _this->tk->events.emit("SYSTEM_EVENT_AP_STAIPASSIGNED");
+        case WIFI_EVENT_AP_STACONNECTED:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STACONNECTED");
+            _this->tk->events.emit("WIFI_EVENT_AP_STACONNECTED");
             break;
-        case SYSTEM_EVENT_AP_STADISCONNECTED:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STADISCONNECTED");
-            _this->tk->events.emit("SYSTEM_EVENT_AP_STADISCONNECTED");
+        case WIFI_EVENT_AP_STADISCONNECTED:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STADISCONNECTED");
+            _this->tk->events.emit("WIFI_EVENT_AP_STADISCONNECTED");
             break;
-        case SYSTEM_EVENT_AP_STOP:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_AP_STOP");
-            _this->tk->events.emit("SYSTEM_EVENT_AP_STOP");
+        case WIFI_EVENT_AP_STOP:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STOP");
+            _this->tk->events.emit("WIFI_EVENT_AP_STOP");
             break;
 
-        case SYSTEM_EVENT_STA_START:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_START");
-            _this->tk->events.emit("SYSTEM_EVENT_STA_START");
-            tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, _this->tk->hostname.c_str());
+        case WIFI_EVENT_STA_START:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_STA_START");
+            _this->tk->events.emit("WIFI_EVENT_STA_START");
             esp_wifi_connect();
             break;
-        case SYSTEM_EVENT_STA_CONNECTED:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_CONNECTED");
-            _this->tk->events.emit("SYSTEM_EVENT_STA_CONNECTED");
+        case WIFI_EVENT_STA_CONNECTED:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_STA_CONNECTED");
+            _this->tk->events.emit("WIFI_EVENT_STA_CONNECTED");
             break;
-        case SYSTEM_EVENT_STA_GOT_IP:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_GOT_IP");
-            _this->tk->events.emit("SYSTEM_EVENT_STA_GOT_IP");
+        case WIFI_EVENT_STA_DISCONNECTED:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_STA_DISCONNECTED");
+            _this->tk->events.emit("WIFI_EVENT_STA_DISCONNECTED");
+            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
+            esp_wifi_connect();
+            break;
+        case WIFI_EVENT_STA_STOP:
+            ESP_LOGI("NETWORK", "WIFI_EVENT_STA_STOP");
+            _this->tk->events.emit("WIFI_EVENT_STA_STOP");
+            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
+            break;
+
+
+        case IP_EVENT_STA_GOT_IP:
+            ESP_LOGI("NETWORK", "IP_EVENT_STA_GOT_IP");
+            _this->tk->events.emit("IP_EVENT_STA_GOT_IP");
             _this->tk->status[STATUS_BIT_NETWORK] = true;
             break;
-        case SYSTEM_EVENT_STA_LOST_IP:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_LOST_IP");
-            _this->tk->events.emit("SYSTEM_EVENT_STA_LOST_IP");
+        case IP_EVENT_STA_LOST_IP:
+            ESP_LOGI("NETWORK", "IP_EVENT_STA_LOST_IP");
+            _this->tk->events.emit("IP_EVENT_STA_LOST_IP");
             if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_DISCONNECTED");
-            _this->tk->events.emit("SYSTEM_EVENT_STA_DISCONNECTED");
-            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
-            esp_wifi_connect();
-            break;
-        case SYSTEM_EVENT_STA_STOP:
-            ESP_LOGI(TAG, "SYSTEM_EVENT_STA_STOP");
-            _this->tk->events.emit("SYSTEM_EVENT_STA_STOP");
-            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
-            break;
+
         default:
             break;
     }
-    mdns_handle_system_event(ctx, event);
-    return ESP_OK;
 }
 
-inline int16_t Network::calcRSSI(int32_t r){
+int16_t Network::calcRSSI(int32_t r){
     return min(max(2 * (r + 100.0), 0.0), 100.0);
 };
 
 void Network::getApIpStr(char* buf){
-    tcpip_adapter_ip_info_t ipInfo; 
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo);
+    esp_netif_ip_info_t ipInfo;
+    esp_netif_get_ip_info(netif_ap, &ipInfo);
     sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
 }
 
 void Network::getStaIpStr(char* buf){
-    tcpip_adapter_ip_info_t ipInfo; 
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
+    esp_netif_ip_info_t ipInfo;
+    esp_netif_get_ip_info(netif_sta, &ipInfo);
     sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
 }
-
-#endif

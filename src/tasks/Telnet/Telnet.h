@@ -13,7 +13,6 @@
 
 #include "../../include/PostOffice.h"
 
-#define TAG "telnet"
 #define BUFFER_SIZE 128
 
 /**

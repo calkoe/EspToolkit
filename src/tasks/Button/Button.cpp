@@ -1,5 +1,3 @@
-#if defined ESP32
-
 #include "Button.h"
 
 Button::Button(PostOffice<std::string>* events, int taskStack, uint8_t taskPrio, TickType_t taskDelay):events{events},taskStack{taskStack},taskPrio{taskPrio},taskDelay{taskDelay}{
@@ -78,6 +76,3 @@ void Button::add(gpio_num_t gpio, gpio_pull_mode_t pullmode, unsigned wait, cons
 void Button::remove(gpio_num_t gpio){
     xQueueSend(remove_queue, (void*)&gpio, portMAX_DELAY);
 };
-
-
-#endif

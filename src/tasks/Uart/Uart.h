@@ -9,8 +9,6 @@
 #include "../../include/LineIn.h"
 #include "../../include/PostOffice.h"
 
-#define TAG "uart"
-
 /**
  * @brief   Uart communication
  * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de

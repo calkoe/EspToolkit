@@ -7,6 +7,6 @@
         "url": "https://github.com/calkoe/EspToolkit.git"
     },
     "version": "0.0.1",
-    "frameworks": "arduino",
+    "frameworks": ["arduino","espidf"],
     "platforms": ["espressif32"]
 }

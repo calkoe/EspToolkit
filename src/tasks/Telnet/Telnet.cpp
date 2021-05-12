@@ -1,5 +1,3 @@
-#if defined ESP32
-
 #include "Telnet.h"
 
 Telnet* Telnet::_this{nullptr};
@@ -22,7 +20,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
         // Create a socket that we will listen upon.
         int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (sock < 0) {
-            ESP_LOGE(TAG, "socket: %d %s", sock, strerror(errno));
+            ESP_LOGE("TELNET", "socket: %d %s", sock, strerror(errno));
             vTaskDelete(NULL);
         }
 
@@ -32,7 +30,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
         serverAddress.sin_port          = htons(23);
         int rc  = bind(sock, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
         if (rc < 0) {
-            ESP_LOGE(TAG, "bind: %d %s", rc, strerror(errno));
+            ESP_LOGE("TELNET", "bind: %d %s", rc, strerror(errno));
             vTaskDelete(NULL);
 
         }
@@ -40,7 +38,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
         // Flag the socket as listening for new connections.
         rc = listen(sock, 5);
         if (rc < 0) {
-            ESP_LOGE(TAG, "listen: %d %s", rc, strerror(errno));
+            ESP_LOGE("TELNET", "listen: %d %s", rc, strerror(errno));
             vTaskDelete(NULL);
         }
 
@@ -49,7 +47,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
             socklen_t clientAddressLength = sizeof(clientAddress);
             _this->clientSock = accept(sock, (struct sockaddr *)&clientAddress, &clientAddressLength);
             if (_this->clientSock < 0) {
-                ESP_LOGE(TAG, "accept: %d %s", _this->clientSock, strerror(errno));
+                ESP_LOGE("TELNET", "accept: %d %s", _this->clientSock, strerror(errno));
                 continue;
             }
 
@@ -67,7 +65,7 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
                 memset(buffer, '\0', BUFFER_SIZE);
                 ssize_t sizeRead = recv(_this->clientSock, buffer, BUFFER_SIZE, 0);
                 if (sizeRead < 0) {
-                    ESP_LOGE(TAG, "recv: %d %s", sizeRead, strerror(errno));
+                    ESP_LOGE("TELNET", "recv: %d %s", sizeRead, strerror(errno));
                     break;
                 }
                 if (sizeRead == 0) {
@@ -97,6 +95,3 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
 void Telnet::print(const char* text){
     send(_this->clientSock, text, strlen(text), 0);
 } 
-
-
-#endif

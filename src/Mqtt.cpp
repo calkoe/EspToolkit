@@ -1,5 +1,3 @@
-#if defined ESP32
-
 #include <Mqtt.h>
 
 Mqtt* Mqtt::_this{nullptr};
@@ -9,7 +7,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
     _this = this;
 
     // Commit on WiFi Connected
-    tk->events.on(0,"SYSTEM_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
+    tk->events.on(0,"IP_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
         _this->commit();
     },this);
 
@@ -50,10 +48,9 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_last_esp_err",esp_err_to_name(_this->lastError.esp_tls_last_esp_err));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_stack_err",strerror(_this->lastError.esp_tls_stack_err));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_cert_verify_flags",strerror(_this->lastError.esp_tls_cert_verify_flags));reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","esp_transport_sock_errno",strerror(_this->lastError.esp_transport_sock_errno));reply(OUT);
         char* error_type; 
         if(_this->lastError.error_type == MQTT_ERROR_TYPE_NONE) error_type = (char*)"MQTT_ERROR_TYPE_NONE";
-        if(_this->lastError.error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) error_type = (char*)"MQTT_ERROR_TYPE_TCP_TRANSPORT";
+        if(_this->lastError.error_type == MQTT_ERROR_TYPE_ESP_TLS) error_type = (char*)"MQTT_ERROR_TYPE_ESP_TLS";
         if(_this->lastError.error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) error_type = (char*)"MQTT_ERROR_TYPE_CONNECTION_REFUSED";
         snprintf(OUT,LONG,"%-30s : %s","error_type",error_type);reply(OUT);
         char* connect_return_code;
@@ -84,20 +81,23 @@ void Mqtt::commit(){
 
     if(enable){
         tk->status[STATUS_BIT_MQTT] = false;
-        config.event_handle = &mqtt_event_handler; 
         config.user_context = this;  
         config.uri          = uri.c_str();
         config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
         client = esp_mqtt_client_init(&config);
+        esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
         esp_mqtt_client_start(client);
     } 
 
-    ESP_LOGI(TAG, "COMMIT FINISHED");
+    ESP_LOGI("MQTT", "COMMIT FINISHED");
 
 }
 
-esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
-    switch (event->event_id) {
+void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
+    ESP_LOGD("MQTT", "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
+    esp_mqtt_event_handle_t event = *(esp_mqtt_event_handle_t*)event_data;
+    //esp_mqtt_client_handle_t client = event->client;
+    switch ((esp_mqtt_event_id_t)event_id) {
         case MQTT_EVENT_BEFORE_CONNECT:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_BEFORE_CONNECT");
             _this->tk->events.emit("MQTT_EVENT_BEFORE_CONNECT");
@@ -166,7 +166,6 @@ esp_err_t Mqtt::mqtt_event_handler(esp_mqtt_event_handle_t event){
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_OTHER id:%d", event->event_id);
             break;
     }
-    return ESP_OK;
 }
 
 void Mqtt::publish(std::string topic, const char* message, int qos, int retain){
@@ -192,5 +191,3 @@ void Mqtt::unsubscribe(std::string topic){
 void Mqtt::print(const char* text){
     if(!_this->commandTopic.empty()) _this->publish(_this->commandTopic + "/reply",text,2,0);
 };
-
-#endif

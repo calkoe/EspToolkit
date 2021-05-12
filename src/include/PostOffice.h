@@ -1,6 +1,5 @@
 
 #pragma once
-#if defined ESP32
 
 #include <vector>
 #include <map>
@@ -76,6 +75,7 @@ void PostOffice<T>::on(uint8_t thread,T topic,void (*callback)(void* ctx,void* a
         .thread     = thread,
         .callback   = callback,
         .ctx        = ctx,
+        .arg        = nullptr
     });
 
     unlock(isr);
@@ -147,9 +147,9 @@ uint16_t PostOffice<T>::loop(uint8_t thread, bool isr){
     uint16_t   n;
     callback_t task;
     while( xQueueReceive( queue ,&(task),0) ){
-        try{
+        //try{
             (*task.callback)(task.ctx,task.arg);    
-        } catch (...) { /* */ }
+        //} catch (...) { /* */ }
         if(task.arg) free(task.arg);
         n++;
     }
@@ -172,5 +172,3 @@ void PostOffice<T>::unlock(bool isr){
     else
         xSemaphoreGiveFromISR(xBinarySemaphore,0);  
 }
-
-#endif

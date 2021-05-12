@@ -7,6 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "driver/gpio.h"
 #include "../../include/PostOffice.h"
 
 /**

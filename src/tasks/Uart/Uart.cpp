@@ -1,5 +1,3 @@
-#if defined ESP32
-
 #include "Uart.h"
 
 Uart* Uart::_this{nullptr};
@@ -44,6 +42,3 @@ Uart::Uart(PostOffice<std::string>* events, const char* commandTopic, const char
 void Uart::print(const char* text){
     std::cout << text;
 };
-
-
-#endif

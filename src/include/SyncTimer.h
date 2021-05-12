@@ -1,5 +1,4 @@
 #pragma once
-#if defined ESP32
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -126,9 +125,9 @@ inline void SyncTimer::loop(){
         if(!i->interval || (int64_t)(t1-i->timestamp)>=i->interval){
             //reply("Abweichung: " + (String)(unsigned long)(ms-i->timestamp));
             unlock();
-                try{
+                //try{
                     (*i->function)(i->ctx); 
-                } catch (...) { /* */ }
+                //} catch (...) { /* */ }
                 taskYIELD();
             lock();
             int64_t t2 = esp_timer_get_time();
@@ -171,5 +170,3 @@ inline void SyncTimer::unlock(bool isr){
     else
         xSemaphoreGiveFromISR(xBinarySemaphore,0);  
 }
-
-#endif

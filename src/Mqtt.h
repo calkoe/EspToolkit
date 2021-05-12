@@ -1,5 +1,4 @@
 #pragma once
-#if defined ESP32
 
 #include <map>
 #include <string>
@@ -21,7 +20,7 @@ class Mqtt{
         EspToolkit* tk;
         esp_mqtt_client_handle_t client{nullptr};
         std::map<std::string,int> subscriptions;
-        static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t);
+        static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
         struct simple_cmd_t{
             char* payload;
             void  (*reply)(const char* str);
@@ -47,6 +46,3 @@ class Mqtt{
         std::string                 uri{"mqtt://test.mosquitto.org:1883"};
 
 };
-
-
-#endif

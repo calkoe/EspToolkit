@@ -1,5 +1,4 @@
 #pragma once
-#if defined ESP32
 #define _GLIBCXX_USE_C99
 
 #include <string>
@@ -9,11 +8,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "esp32-hal-cpu.h"
+#include "esp_pm.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_spiffs.h"
+#include "esp_event.h"
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 
@@ -22,7 +22,6 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define TAG "toolkit"
 #define FIRMWARE "EspToolkit 1.1.0"
 
 //  Definitions
@@ -129,5 +128,3 @@ inline bool                     sign(double i){return i < 0;};
 inline double                   min(double a, double b){return (a < b ? a : b);};
 inline double                   max(double a, double b){return (a > b ? a : b);};
 std::vector<std::string>        split (std::string s, std::string delimiter);
-
-#endif

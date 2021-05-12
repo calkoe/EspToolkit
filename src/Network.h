@@ -1,12 +1,8 @@
 #pragma once
-#if defined ESP32
 
-
-#include <tcpip_adapter.h>
 #include "lwip/ip4_addr.h"
 #include "lwip/dns.h"
-#include "esp_event.h"
-#include "esp_event_loop.h"
+#include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_sntp.h"
 #include "esp_ota_ops.h"
@@ -16,8 +12,6 @@
 
 #include "EspToolkit.h"
 #include "tasks/Telnet/Telnet.h"
-
-#define TAG "network"
 
 /**
  * @brief   Network
@@ -32,7 +26,6 @@ class Network{
 
         static Network* _this;
         EspToolkit* tk;
-        int16_t  calcRSSI(int32_t);
 
     public:
 
@@ -40,34 +33,14 @@ class Network{
         Network(EspToolkit*);
         Telnet*  telnet;
         void     commit();
-        static   esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
+        //static   esp_err_t wifi_event_handler(void *ctx, system_event_t *event);
+        static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+        esp_netif_t* netif_ap;
+        esp_netif_t* netif_sta;
         void     getApIpStr(char* buf);
         void     getStaIpStr(char* buf);
+        int16_t  calcRSSI(int32_t);
         bool     ap_autostart_triggered{false};
-
-        //LOW LEVEL CONFIG
-        wifi_init_config_t config_init = {
-            .event_handler = &esp_event_send,
-            .osi_funcs = &g_wifi_osi_funcs,
-            .wpa_crypto_funcs = g_wifi_default_wpa_crypto_funcs,
-            .static_rx_buf_num = CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM,
-            .dynamic_rx_buf_num = CONFIG_ESP32_WIFI_DYNAMIC_RX_BUFFER_NUM,
-            .tx_buf_type = CONFIG_ESP32_WIFI_TX_BUFFER_TYPE,
-            .static_tx_buf_num = WIFI_STATIC_TX_BUFFER_NUM,
-            .dynamic_tx_buf_num = WIFI_DYNAMIC_TX_BUFFER_NUM,
-            .csi_enable = WIFI_CSI_ENABLED,
-            .ampdu_rx_enable = WIFI_AMPDU_RX_ENABLED,
-            .ampdu_tx_enable = WIFI_AMPDU_TX_ENABLED,
-            .nvs_enable = WIFI_NVS_ENABLED,
-            .nano_enable = WIFI_NANO_FORMAT_ENABLED,
-            .tx_ba_win = WIFI_DEFAULT_TX_BA_WIN,
-            .rx_ba_win = WIFI_DEFAULT_RX_BA_WIN,
-            .wifi_task_core_id = WIFI_TASK_CORE_ID,
-            .beacon_max_len = WIFI_SOFTAP_BEACON_MAX_LEN, 
-            .mgmt_sbuf_num = WIFI_MGMT_SBUF_NUM, 
-            .feature_caps = g_wifi_feature_caps, 
-            .magic = WIFI_INIT_CONFIG_MAGIC
-        };
 
         wifi_config_t config_ap = {
             .ap = {
@@ -96,6 +69,10 @@ class Network{
                     .rssi = -100,
                     .authmode = WIFI_AUTH_OPEN
                 },
+                .pmf_cfg = {
+                    .capable = true,
+                    .required = false
+                }
             }
         };
 
@@ -114,5 +91,3 @@ class Network{
         int         ps_type{1};         // WIFI_PS_NONE, WIFI_PS_MIN_MODEM, WIFI_PS_MAX_MODEM
     
 };
-
-#endif
