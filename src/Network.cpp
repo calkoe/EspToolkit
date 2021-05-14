@@ -124,7 +124,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
             esp_http_client_config_t config = {};
             config.url = param[1];
             config.transport_type = HTTP_TRANSPORT_OVER_TCP;
-            config.cert_pem = loadFile("/spiffs/ota_ca_cert.pem");
+            config.cert_pem = loadFile("/s/ca/ota.pem");
             config.skip_cert_common_name_check = true;
 
             // Run OTA

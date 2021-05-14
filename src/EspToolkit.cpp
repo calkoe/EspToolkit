@@ -91,7 +91,7 @@ void EspToolkit::begin(){
     // Initialize SPIFFS
     ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
     esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
+      .base_path = "/s",
       .partition_label = NULL,
       .max_files = 10,
       .format_if_mount_failed = true

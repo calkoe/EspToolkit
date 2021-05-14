@@ -88,8 +88,11 @@ void Mqtt::commit(){
         config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
 
         // Load cert_pem from SPIFFS 
+        static char* ca_cert{nullptr};
+        if(ca_cert) delete[] ca_cert;
+        ca_cert = loadFile("/s/ca/mqtt.pem");
         config.skip_cert_common_name_check = true;
-        config.cert_pem = loadFile("/spiffs/mqtt_ca_cert.pem");
+        config.cert_pem = ca_cert;
 
         // Connect
         client = esp_mqtt_client_init(&config);

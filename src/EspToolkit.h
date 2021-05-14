@@ -1,6 +1,7 @@
 #pragma once
-#define _GLIBCXX_USE_C99
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -12,6 +13,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
+#include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
