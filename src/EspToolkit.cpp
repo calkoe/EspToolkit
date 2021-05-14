@@ -107,9 +107,6 @@ void EspToolkit::begin(){
         }
     }
 
-    // Initialize Event Loop
-    //esp_event_loop_create_default();
-
     // Initialize Variables
     ESP_LOGI("TOOLKIT", "Initializing Variables");
     variableLoad();
@@ -587,4 +584,20 @@ std::vector<std::string> split (std::string s, std::string delimiter) {
 
     res.push_back (s.substr (pos_start));
     return res;
+}
+
+char* loadFile(const char* filename){
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        ESP_LOGE("TOOLKIT", "Failed to open file (%s) for reading: ", filename);
+        return nullptr;
+    }
+    fseek(file, 0, SEEK_END);
+    size_t file_size = ftell(file);
+    char* file_content = (char*)malloc(file_size+1);
+    rewind(file);
+    fread(file_content, sizeof(char), file_size, file);
+    fclose(file);
+    file_content[file_size] = '\0';
+    return file_content;
 }

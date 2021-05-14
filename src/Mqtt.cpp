@@ -80,10 +80,18 @@ void Mqtt::commit(){
     }
 
     if(enable){
+
+        // Config
         tk->status[STATUS_BIT_MQTT] = false;
         config.user_context = this;  
         config.uri          = uri.c_str();
         config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
+
+        // Load cert_pem from SPIFFS 
+        config.skip_cert_common_name_check = true;
+        config.cert_pem = loadFile("/spiffs/mqtt_ca_cert.pem");
+
+        // Connect
         client = esp_mqtt_client_init(&config);
         esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
         esp_mqtt_client_start(client);

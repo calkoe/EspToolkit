@@ -120,25 +120,11 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
         if(parCnt==2){
 
-            // Load cert_pem from SPIFFS 
-            FILE* cert_pem_f = fopen("/spiffs/ca_cert.pem", "r");
-            if (cert_pem_f == NULL) {
-                ESP_LOGE("NETWORK", "Failed to open file (/spiffs/ca_cert.pem) for reading");
-                return;
-            }
-            fseek(cert_pem_f, 0, SEEK_END);
-            size_t cert_pem_size = ftell(cert_pem_f);
-            char* cert_pem = new char[cert_pem_size+1];
-            rewind(cert_pem_f);
-            fread(cert_pem, sizeof(char), cert_pem_size, cert_pem_f);
-            fclose(cert_pem_f);
-            cert_pem[cert_pem_size] = '\0';
-
             // Config OTA
             esp_http_client_config_t config = {};
             config.url = param[1];
             config.transport_type = HTTP_TRANSPORT_OVER_TCP;
-            config.cert_pem = cert_pem;
+            config.cert_pem = loadFile("/spiffs/ota_ca_cert.pem");
             config.skip_cert_common_name_check = true;
 
             // Run OTA
@@ -148,8 +134,6 @@ Network::Network(EspToolkit* tk):tk{tk}{
             } else {
                 reply(strerror(ret));reply(" - Firmware upgrade failed\r\n");
             }
-
-            delete[] cert_pem;
 
         }else{
             _this->tk->commandMan("wifiOta",reply);
