@@ -20,7 +20,7 @@ class Uart{
 
         static Uart* _this;
         PostOffice<std::string>* events;
-        LineIn<128> lineIn;
+        LineIn      lineIn;
         const char* commandTopic;
         const char* broadcastTopic;
         struct simple_cmd_t{

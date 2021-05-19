@@ -80,14 +80,15 @@ class Network{
         bool        ap_enable{false};
         bool        ap_autostart{true};
         bool        sta_enable{false};
-        std::string sta_network{};
-        std::string sta_password{};
-        std::string sta_ip{};
-        std::string sta_subnet{};
-        std::string sta_gateway{};
-        std::string sta_dns{};
-        std::string sta_sntp{};
+        std::string sta_network;
+        std::string sta_password;
+        std::string sta_ip;
+        std::string sta_subnet;
+        std::string sta_gateway;
+        std::string sta_dns;
+        std::string sta_sntp;
         bool        telnet_enable{true};
         int         ps_type{1};         // WIFI_PS_NONE, WIFI_PS_MIN_MODEM, WIFI_PS_MAX_MODEM
+        std::string ota_caCert;
     
 };

@@ -24,16 +24,14 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define FIRMWARE "EspToolkit 1.1.0"
+#define FIRMWARE "EspToolkit 1.2.0"
 
 //  Definitions
-#define SHORT               128   
 #define LONG                256     
 #define SERSPEED            115200 
 #define STATUSLED           2
 #define STATUSLEDON         1
 #define BOOTBUTTON          0
-#define EEPROM_SIZE         1024  
 
 // Events
 #define EVT_TK_BROADCAST    "tk:broadcast"
@@ -111,16 +109,13 @@ class EspToolkit{
         static void             commandList(const char*,void (*reply)(const char*));
         static void             commandMan(const char*, void (*reply)(const char*));
         static bool             commandCall(const char*,void (*reply)(const char*),char** = 0, uint8_t = 0);
-        static void             commandParseAndCall(const char* ca,void (*reply)(const char*));
+        static void             commandParseAndCall(char* ca,void (*reply)(const char*));
 
         //API Variables
         static bool             variableAdd(const char*,bool&,  const char* = "",bool = false,bool = false);
         static bool             variableAdd(const char*,int&,   const char* = "",bool = false,bool = false);
         static bool             variableAdd(const char*,double&,const char* = "",bool = false,bool = false);
         static bool             variableAdd(const char*,std::string&,const char* = "",bool = false,bool = false);
-        static void             variableList(const char*,void (*reply)(const char*));
-        static bool             variableSet(const char*,char*);
-        static void*            variableGet(const char*);
         static void             variableLoad(bool save = false, bool reset = false);
 };
 

@@ -32,8 +32,9 @@ class Telnet{
             char* payload;
             void  (*reply)(const char* str);
         };
-
-
+        std::string _buffer;
+        bool _marks{false};
+        void in(char);
 
     public:
 

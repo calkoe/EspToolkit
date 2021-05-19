@@ -19,15 +19,17 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
     // Shell
     tk->variableAdd("mqtt/enable",      enable,         "📡  MQTT Enable");
     tk->variableAdd("mqtt/uri",         uri,            "📡  MQTT URI");
+    tk->variableAdd("mqtt/caCert",      caCert,         "📡  MQTT CA CERT");
+    tk->variableAdd("mqtt/caVerify",    caVerify,       "📡  MQTT VERIFY CERT");
     tk->variableAdd("mqtt/cmd",         commandTopic,   "📡  MQTT Receive and send Commands via this topic");
 
     tk->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
-        if(parCnt>=2){
+        if(parCnt==2){
             snprintf(OUT,128,"Set  mqtt/enable: %s\r\n","true");
-            _this->tk->variableSet("mqtt/enable",(char*)"1");
-            snprintf(OUT,128,"Set  mqtt/uri: %s\r\n","true");
-            _this->tk->variableSet("mqtt/uri",param[1]);
+            _this->enable = true;
+            snprintf(OUT,128,"Set  mqtt/uri: %s\r\n",param[1]);
+            _this->uri = param[1];
         };
         _this->tk->variableLoad(true);
         _this->commit();
@@ -78,22 +80,19 @@ void Mqtt::commit(){
         esp_mqtt_client_destroy(client);
         client = NULL;
     }
-
     if(enable){
 
         // Config
         tk->status[STATUS_BIT_MQTT] = false;
         config.user_context = this;  
-        config.uri          = uri.c_str();
         config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
-
-        // Load cert_pem from SPIFFS 
-        static char* ca_cert{nullptr};
-        if(ca_cert) delete[] ca_cert;
-        ca_cert = loadFile("/s/ca/mqtt.pem");
-        config.skip_cert_common_name_check = true;
-        config.cert_pem = ca_cert;
-
+        config.uri          = uri.c_str();
+        config.buffer_size  = 4096;
+        if(!caCert.empty()){
+            config.skip_cert_common_name_check = !caVerify;
+            config.cert_pem = caCert.c_str();
+        }
+        
         // Connect
         client = esp_mqtt_client_init(&config);
         esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
@@ -106,7 +105,7 @@ void Mqtt::commit(){
 
 void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
     ESP_LOGD("MQTT", "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
-    esp_mqtt_event_handle_t event = *(esp_mqtt_event_handle_t*)event_data;
+    esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
     //esp_mqtt_client_handle_t client = event->client;
     switch ((esp_mqtt_event_id_t)event_id) {
         case MQTT_EVENT_BEFORE_CONNECT:
@@ -144,6 +143,17 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DATA");
             _this->tk->events.emit("MQTT_EVENT_DATA");  
 
+            /*
+            std::cout << "msg_id: " << event->msg_id << std::endl;
+            std::cout << "topic_len: " << event->topic_len << std::endl;
+            std::cout << "data_len: " << event->data_len << std::endl;
+            std::cout << "current_data_offset: " << event->current_data_offset << std::endl;
+            std::cout << "total_data_len: " << event->total_data_len << std::endl;
+            */
+
+            // Block Message Fragments
+            if(event->current_data_offset) break;
+
             // Add Zero Termination
             char* topic = (char*) malloc(event->topic_len + 1);
             char* data  = (char*) malloc(event->data_len  + 1);
@@ -152,13 +162,15 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
 
             // Commands Topic
             if(!_this->commandTopic.empty() && _this->commandTopic == std::string(topic)){
-                simple_cmd_t simple_cmd{
-                    strdup(data), 
-                    print
-                };
-                _this->tk->events.emit(EVT_TK_COMMAND,(void*)&simple_cmd,sizeof(simple_cmd_t));
-            }
 
+                // Process Input
+                for (int i{0}; i<event->data_len; i++){
+                    _this->in(event->data[i]);
+                }
+                _this->in('\n');
+
+            }
+           
             // Event
             _this->tk->events.emit(topic,(void*)data,event->data_len  + 1);
 
@@ -202,3 +214,30 @@ void Mqtt::unsubscribe(std::string topic){
 void Mqtt::print(const char* text){
     if(!_this->commandTopic.empty()) _this->publish(_this->commandTopic + "/reply",text,2,0);
 };
+
+void Mqtt::in(char c){
+
+
+    // Toogle Marks
+    if(c == '"'){
+        _marks = !_marks;
+    }
+
+    // Execute
+    if(!_marks && c == '\n'){     
+        simple_cmd_t simple_cmd{
+            strdup(_buffer.c_str()), 
+            print
+        };
+        tk->events.emit(EVT_TK_COMMAND,(void*)&simple_cmd,sizeof(simple_cmd_t));
+        _buffer.clear();
+        return;
+    }
+
+    // Echo and Save visible chars
+    if(c >= 32 && c <= 126 || c == '\n'){
+        _buffer += c;
+        return;
+    }
+
+}

@@ -25,6 +25,9 @@ class Mqtt{
             char* payload;
             void  (*reply)(const char* str);
         };
+        std::string _buffer;
+        bool _marks{false};
+        void in(char);
 
     public:
 
@@ -42,7 +45,9 @@ class Mqtt{
 
         //CONFIG
         bool                        enable{false};
-        std::string                 commandTopic{};
+        std::string                 commandTopic;
+        std::string                 caCert;
+        bool                        caVerify{false};
         std::string                 uri{"mqtt://test.mosquitto.org:1883"};
 
 };

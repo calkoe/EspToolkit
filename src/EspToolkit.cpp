@@ -65,7 +65,7 @@ EspToolkit::EspToolkit(){
             void  (*reply)(const char* str);
         };
         simple_cmd_t simple_cmd = *(simple_cmd_t*) arg;
-        //printf("Command Parser got: %s %s",simple_cmd.payload,EOL);
+        //printf("Command Parser got: %s\r\n",simple_cmd.payload);
         _this->commandParseAndCall(simple_cmd.payload,simple_cmd.reply);
         free((void*)simple_cmd.payload);
     },this);
@@ -76,11 +76,10 @@ EspToolkit::EspToolkit(){
     commandAddDefault();
 
 }
-
 void EspToolkit::begin(){
 
     // Initialize NVS
-    ESP_LOGI("TOOLKIT", "Initializing NVS");
+    ESP_LOGE("TOOLKIT", "Initializing NVS");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -89,7 +88,7 @@ void EspToolkit::begin(){
     ESP_ERROR_CHECK( ret );
 
     // Initialize SPIFFS
-    ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
+    ESP_LOGE("TOOLKIT", "Initializing SPIFFS");
     esp_vfs_spiffs_conf_t conf = {
       .base_path = "/s",
       .partition_label = NULL,
@@ -108,11 +107,11 @@ void EspToolkit::begin(){
     }
 
     // Initialize Variables
-    ESP_LOGI("TOOLKIT", "Initializing Variables");
+    ESP_LOGE("TOOLKIT", "Initializing Variables");
     variableLoad();
 
     // Initialize CPU
-    ESP_LOGI("TOOLKIT", "Initializing CPU");
+    ESP_LOGE("TOOLKIT", "Initializing CPU");
     esp_pm_config_esp32_t pm_config;
     switch(cpuFreq){
         case 0:
@@ -148,7 +147,7 @@ void EspToolkit::begin(){
 
 
     // Initialize Logging
-    ESP_LOGI("TOOLKIT", "Initializing Logging");
+    ESP_LOGE("TOOLKIT", "Initializing Logging");
     switch(logLevel){
         case 0:
             esp_log_level_set("*", ESP_LOG_ERROR);
@@ -171,14 +170,14 @@ void EspToolkit::begin(){
     }
 
     // Initialize Watchdog
-    ESP_LOGI("TOOLKIT", "Initializing Watchdog");
+    ESP_LOGE("TOOLKIT", "Initializing Watchdog");
     if(watchdog){
         esp_task_wdt_init(watchdog, true); 
         esp_task_wdt_add(NULL); 
     }
 
     //Sys Status
-    ESP_LOGI("TOOLKIT", "Initializing Sys Status");
+    ESP_LOGE("TOOLKIT", "Initializing Sys Status");
     status[STATUS_BIT_SYSTEM] = true;
 
 }
@@ -230,22 +229,6 @@ bool EspToolkit::commandAdd(const char* name,void (*function)(void*,void (*)(con
 };
 
 /**
- * List aviable Commands on CLI
- * 
- * @param filter Filter on Command name
-*/
-void EspToolkit::commandList(const char* filter,void (*reply)(const char*)){
-    reply("\r\nCommands:\r\n");
-    AOS_CMD* i{aos_cmd};
-    while(i != nullptr){
-        if(!i->hidden && (!filter || strstr(i->name, filter))){
-            snprintf(OUT,LONG, "%-30s %s\r\n",i->name,i->description);reply(OUT);
-        }
-        i = i->aos_cmd;
-    };
-}
-
-/**
  * Display Command manual on CLI
  * 
  * @param filter Filter by Command name
@@ -273,7 +256,7 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(const char*), char**
 
     // Locking Meschanism
     if(locked){
-        if(password.empty() || !strncmp(name,password.c_str(),SHORT)){
+        if(password.empty() || !strncmp(name,password.c_str(),64)){
             locked=false;
             reply("SYSTEM UNLOCKED!\r\n");
             variableLoad(true);
@@ -286,7 +269,7 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(const char*), char**
 
     AOS_CMD* i{aos_cmd};
     while(!locked && i != nullptr){
-        if(!strncmp(i->name,name,SHORT)){
+        if(!strncmp(i->name,name,64)){
             (*(i->function))(i->ctx, reply, param, parCnt);
             return true;
         }
@@ -300,27 +283,54 @@ bool EspToolkit::commandCall(const char* name,void (*reply)(const char*), char**
  * Parse Command From string an run
  *
 */
-void EspToolkit::commandParseAndCall(const char* ca, void (*reply)(const char*)){
-    uint8_t     parCnt{0};
-    char*       param[SHORT]{NULL};
-    char        search{' '};
-    unsigned    s{0};
-    for(unsigned i{0};i<strlen(ca);i++){
-        if(ca[i] == '\0' || ca[i] == '\r' || ca[i] == '\n') break;
-        while((ca[i] == '"' || ca[i] == ' ') && ca[i] != '\0' && ca[i] != '\r' && ca[i] != '\n') search = ca[i++];
-        s = i;
-        while(ca[i] != search && ca[i] != '\0' && ca[i] != '\r' && ca[i] != '\n') i++;
-        char* buffer = (char*)malloc(i-s+1);
-        for(unsigned j{0};j<(i-s);j++) buffer[j] = ca[s+j];
-        buffer[i-s] = 0;param[parCnt++] = buffer;
+void EspToolkit::commandParseAndCall(char* ca, void (*reply)(const char*)){
+    uint    i{0};
+    char*   args[16];
+    uint    argsLen{0};
+    while(ca[i]){
+
+        //  Process Spaces
+        if(ca[i] == ' '){
+            ca[i] = '\0';
+            i++;
+            while(ca[i] && ca[i] == ' ') i++;
+            if(ca[i] != '"'){
+                args[argsLen++] = &ca[i];
+                i++;
+            }
+            continue;
+        }
+
+        //  Process Marks
+        if(ca[i] == '"'){
+            i++;
+            args[argsLen++] = &ca[i];
+            while(ca[i] && ca[i] != '"') i++;
+            ca[i] = '\0';
+            i++;
+            continue;
+        }
+
+        //  Set Starting Point
+        if(!i) args[argsLen++] = &ca[i];
+        i++;
+
     }
-    if(parCnt>0){
-        if(!commandCall(param[0],reply,param,parCnt)){
+
+    reply((char*)"\r\n");     
+
+    
+    // Call Command
+    if(argsLen){
+        if(!commandCall(args[0],reply,args,argsLen)){
             reply("Command not found! Try 'help' for more information.\r\n");
         }
     }
-    reply("ESPToolkit:/>");
-    for(uint8_t i{0};i<parCnt;i++) delete param[i];
+
+    //Prefix
+    snprintf(OUT,LONG,"%s:/>",hostname.c_str());
+    reply(OUT);
+
 };
 
 //Variables
@@ -356,45 +366,6 @@ bool EspToolkit::_variableAdd(const char* name,void* value,const char* descripti
     } 
     
     return false;
-};
-void EspToolkit::variableList(const char* filter, void (*reply)(const char*)){
-    reply("Variables:\r\n");
-    AOS_VAR* i{aos_var};
-    while(i != nullptr){
-        if(!i->hidden && (!filter || strstr(i->name, filter))){ 
-            if(i->aos_dt==AOS_DT_BOOL)   snprintf(OUT,LONG,"%-30s : %-40s\t%s %s\r\n", i->name,*(bool*)(i->value) ? "true" : "false",i->description,(i->protect ? "(Protected)":""));
-            if(i->aos_dt==AOS_DT_INT)    snprintf(OUT,LONG,"%-30s : %-40d\t%s %s\r\n", i->name,*(int*)(i->value),i->description,(i->protect ? "(Protected)":""));
-            if(i->aos_dt==AOS_DT_DOUBLE) snprintf(OUT,LONG,"%-30s : %-40f\t%s %s\r\n", i->name,*(double*)(i->value),i->description,(i->protect ? "(Protected)":""));
-            if(i->aos_dt==AOS_DT_STRING) snprintf(OUT,LONG,"%-30s : %-40s\t%s %s\r\n", i->name,(*(std::string*)(i->value)).c_str(),i->description,(i->protect ? "(Protected)":""));
-            reply(OUT);
-        }
-        i = i->aos_var;
-    };
-}
-bool EspToolkit::variableSet(const char* name,char* value){
-    
-    AOS_VAR* i{aos_var};
-    while(i != nullptr){
-        if(!strcmp(i->name,name)){
-            if(i->protect) return false;
-            if(i->aos_dt==AOS_DT_BOOL)      *(bool*)(i->value)   = !value ? false   : (!strcmp(value,"1") || !strcmp(value,"true")) ? true : false;
-            if(i->aos_dt==AOS_DT_INT)       *(int*)(i->value)    = !value ? 0       : atoi(value);
-            if(i->aos_dt==AOS_DT_DOUBLE)    *(double*)(i->value) = !value ? 0.0     : atof(value); 
-            if(i->aos_dt==AOS_DT_STRING)    *(std::string*)(i->value) = !value ? "" : value;
-            return true;
-        }
-        i = i->aos_var;
-    };
-    
-    return false;
-};
-void* EspToolkit::variableGet(const char* name){
-    AOS_VAR* i{aos_var};
-    while(i != nullptr){
-        if(!strcmp(i->name,name)) return i->value;
-        i = i->aos_var;
-    };
-    return nullptr;
 };
 void EspToolkit::variableLoad(bool save, bool reset){
     if(!isBegin) isBegin = true;
@@ -433,11 +404,14 @@ void EspToolkit::variableLoad(bool save, bool reset){
                 if(save){
                     nvs_set_str(my_handle, i->name, (*(std::string*)(i->value)).c_str());
                 }else{
-                    char ca[LONG]{0};
-                    size_t size =  LONG;
-                    if(nvs_get_str(my_handle, i->name, ca, &size) == ESP_OK){
-                        *(std::string*)(i->value) = ca;
-                    };
+                    size_t required_size;
+                    if(nvs_get_str(my_handle, i->name, NULL, &required_size) == ESP_OK && required_size > 0){
+                        char* buffer = (char*)malloc(required_size);
+                        if(nvs_get_str(my_handle, i->name, buffer, &required_size) == ESP_OK){
+                            *(std::string*)(i->value) = buffer;
+                        };
+                        delete[] buffer;
+                    }
                 }
             }
         i = i->aos_var;
@@ -479,17 +453,43 @@ void EspToolkit::commandAddDefault(){
     },NULL,"🖥  gpio [pin] [0|1]");
 
     commandAdd("help",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-        if(parCnt == 1)
-            commandList(NULL,reply);
-        if(parCnt == 2)
-            commandList(param[1],reply);
+        char* filter = parCnt == 2 ? param[1] : NULL;
+        reply("\r\nCommands:\r\n");
+        AOS_CMD* i{aos_cmd};
+        while(i != nullptr){
+            if(!i->hidden && (!filter || strstr(i->name, filter))){
+                snprintf(OUT,LONG, "%-30s %s\r\n",i->name,i->description);reply(OUT);
+            }
+            i = i->aos_cmd;
+        };
     },NULL,"",true);
 
     commandAdd("get",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-        if(parCnt == 2)
-            variableList(param[1],reply);
-        else
-            variableList(NULL,reply);
+        char* filter = parCnt == 2 ? param[1] : NULL;
+        reply("Variables:\r\n");
+        AOS_VAR* i{aos_var};
+        while(i != nullptr){
+            if(!i->hidden && (!filter || strstr(i->name, filter))){ 
+                if(i->aos_dt==AOS_DT_BOOL)   snprintf(OUT,LONG,"%-30s : %-40s\t%s %s\r\n", i->name,*(bool*)(i->value) ? "true" : "false",i->description,(i->protect ? "(Protected)":""));
+                if(i->aos_dt==AOS_DT_INT)    snprintf(OUT,LONG,"%-30s : %-40d\t%s %s\r\n", i->name,*(int*)(i->value),i->description,(i->protect ? "(Protected)":""));
+                if(i->aos_dt==AOS_DT_DOUBLE) snprintf(OUT,LONG,"%-30s : %-40f\t%s %s\r\n", i->name,*(double*)(i->value),i->description,(i->protect ? "(Protected)":""));
+                if(i->aos_dt==AOS_DT_STRING) {
+                    size_t length  = (*(std::string*)(i->value)).length();
+                    bool   newLine = (*(std::string*)(i->value)).find('\n') != std::string::npos;
+                    char length_str[32]{0};
+                    snprintf(length_str,32,"[ Length: %zu Bytes ]",length);
+                    snprintf(OUT,LONG,"%-30s : %-40s\t%s %s\r\n", i->name,(length > 32 || newLine) ? length_str : (*(std::string*)(i->value)).c_str(),i->description,(i->protect ? "(Protected)":""));
+                    if(filter && strcmp(filter, i->name) == 0){
+                        reply(OUT);
+                        reply((*(std::string*)(i->value)).c_str());
+                        reply("\r\n");
+                        memset(OUT, 0, LONG);
+                    }
+                }
+                reply(OUT);
+            }
+            i = i->aos_var;
+        };
     },NULL,"🖥  get [filter]");
 
     commandAdd("set",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
@@ -498,12 +498,26 @@ void EspToolkit::commandAddDefault(){
             commandMan("set",reply);
             return;
         }
-        if(variableSet(param[1],param[2])){
-            variableLoad(true);
-            reply("ok\r\n");
-        }else{
-            reply("Parameter not found!\r\n");
-        } 
+        char* name  = param[1];
+        char* value = parCnt == 3 ? param[2] : NULL;
+        AOS_VAR* i{aos_var};
+        while(i != nullptr){
+            if(!strcmp(i->name,name)){
+                if(i->protect){
+                    reply("Parameter is protected!\r\n");
+                    return;
+                }
+                if(i->aos_dt==AOS_DT_BOOL)      *(bool*)(i->value)        = !value ? false   : (!strcmp(value,"1") || !strcmp(value,"true")) ? true : false;
+                if(i->aos_dt==AOS_DT_INT)       *(int*)(i->value)         = !value ? 0       : atoi(value);
+                if(i->aos_dt==AOS_DT_DOUBLE)    *(double*)(i->value)      = !value ? 0.0     : atof(value); 
+                if(i->aos_dt==AOS_DT_STRING)    *(std::string*)(i->value) = !value ? "" : value;
+                variableLoad(true);
+                reply("ok\r\n");
+                return;
+            }
+            i = i->aos_var;
+        };
+        reply("Parameter not found!\r\n");
     },NULL,"🖥  set [par] [val]");
 
     commandAdd("clear",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){

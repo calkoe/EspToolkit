@@ -8,6 +8,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     // NETIF
     esp_netif_init();
+    mdns_init();
     esp_event_loop_create_default();
     esp_event_handler_instance_t instance_wifi_any_id;
     esp_event_handler_instance_t instance_ip_any_id;
@@ -62,6 +63,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
     tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot");
     tk->variableAdd("hotspot/autostart", ap_autostart,      "📶 Start Hotspot if threre is no STA connection aviable");
     tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
+    tk->variableAdd("ota/caCert",        ota_caCert,        "📶 CA Certificate for OTA Updates");
 
     // COMMANDS
     tk->commandAdd("wifiStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
@@ -124,7 +126,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
             esp_http_client_config_t config = {};
             config.url = param[1];
             config.transport_type = HTTP_TRANSPORT_OVER_TCP;
-            config.cert_pem = loadFile("/s/ca/ota.pem");
+            config.cert_pem = _this->ota_caCert.c_str();
             config.skip_cert_common_name_check = true;
 
             // Run OTA
@@ -207,11 +209,11 @@ Network::Network(EspToolkit* tk):tk{tk}{
                 snprintf(OUT,LONG,"Set  wifi/enabled: %s\r\n","true");reply(OUT);
                 _this->sta_enable  = true;
                 snprintf(OUT,LONG,"Set  wifi/network: %s\r\n",param[1]);reply(OUT);
-                tk->variableSet("wifi/network",param[1]);
+                _this->sta_network = param[1];
         };
         if(parCnt>=3){
                 snprintf(OUT,LONG,"Set wifi/password: %s\r\n",param[2]);reply(OUT);
-                tk->variableSet("wifi/password",param[2]);
+                _this->sta_password = param[2];
         };
         tk->variableLoad(true);
         reply((char*)"DONE! ✅ > Type 'wifiStatus' to check status\r\n");
@@ -265,12 +267,10 @@ void Network::commit(){
 
     if(ap){
         esp_wifi_set_config(WIFI_IF_AP, &config_ap);
-        esp_netif_set_hostname(netif_ap,_this->tk->hostname.c_str());
     }
 
     if(sta){
         esp_wifi_set_config(WIFI_IF_STA, &config_sta);
-        esp_netif_set_hostname(netif_sta,_this->tk->hostname.c_str());
         if(!sta_ip.empty() && !sta_subnet.empty() && !sta_gateway.empty() && !sta_dns.empty()){
             esp_netif_dhcps_stop(netif_sta);
             esp_netif_ip_info_t ip_info;
@@ -287,7 +287,6 @@ void Network::commit(){
     }
 
     // MDNS
-    mdns_init();
     mdns_hostname_set(_this->tk->hostname.c_str());
     mdns_instance_name_set(_this->tk->hostname.c_str());
     mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
@@ -312,6 +311,7 @@ void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_AP_START:
             ESP_LOGI("NETWORK", "WIFI_EVENT_AP_START");
             _this->tk->events.emit("WIFI_EVENT_AP_START");
+            esp_netif_set_hostname(_this->netif_ap,_this->tk->hostname.c_str());
             break;
         case SYSTEM_EVENT_AP_STACONNECTED:
             ESP_LOGI("NETWORK", "SYSTEM_EVENT_AP_STACONNECTED");
@@ -333,6 +333,7 @@ void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_STA_START:
             ESP_LOGI("NETWORK", "WIFI_EVENT_STA_START");
             _this->tk->events.emit("WIFI_EVENT_STA_START");
+            esp_netif_set_hostname(_this->netif_sta,_this->tk->hostname.c_str());
             esp_wifi_connect();
             break;
         case WIFI_EVENT_STA_CONNECTED:
@@ -350,7 +351,6 @@ void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t
             _this->tk->events.emit("WIFI_EVENT_STA_STOP");
             if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
-
 
         case IP_EVENT_STA_GOT_IP:
             ESP_LOGI("NETWORK", "IP_EVENT_STA_GOT_IP");

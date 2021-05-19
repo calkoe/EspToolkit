@@ -52,7 +52,6 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
             }
 
             // We now have a new client ... lets say hello!
-            void* buffer = malloc(BUFFER_SIZE);
             simple_cmd_t simple_cmd{
                 strdup("help"), 
                 print
@@ -60,10 +59,12 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
             _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
 
             // Loop reading data.
+            char* readBuffer = (char*)malloc(BUFFER_SIZE);
+            bool  first{true};
             while(1) {
-                static bool first{true};
-                memset(buffer, '\0', BUFFER_SIZE);
-                ssize_t sizeRead = recv(_this->clientSock, buffer, BUFFER_SIZE, 0);
+                
+                memset(readBuffer, '\0', BUFFER_SIZE);
+                ssize_t sizeRead = recv(_this->clientSock, readBuffer, BUFFER_SIZE, 0);
                 if (sizeRead < 0) {
                     ESP_LOGE("TELNET", "recv: %d %s", sizeRead, strerror(errno));
                     break;
@@ -75,14 +76,16 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
                     first = false;
                     continue;
                 }
-                simple_cmd_t simple_cmd{
-                    strdup((char*)buffer), 
-                    print
-                };
-                _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
+
+                // Process Input
+                for (size_t i{0}; i<sizeRead; i++){
+                    _this->in(readBuffer[i]);
+                }
+
+                // Delay
                 vTaskDelay(10);
             }
-            free(buffer);
+            free(readBuffer);
             close(_this->clientSock);
             _this->clientSock = -1;
         }
@@ -95,3 +98,29 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
 void Telnet::print(const char* text){
     send(_this->clientSock, text, strlen(text), 0);
 } 
+
+void Telnet::in(char c){
+
+    // Toogle Marks
+    if(c == '"'){
+        _marks = !_marks;
+    }
+
+    // Execute
+    if(!_marks && c == '\n'){     
+        simple_cmd_t simple_cmd{
+            strdup(_buffer.c_str()), 
+            print
+        };
+        events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
+        _buffer.clear();
+        return;
+    }
+
+    // Echo and Save visible chars
+    if(c >= 32 && c <= 126 || c == '\n'){
+        _buffer += c;
+        return;
+    }
+
+}
