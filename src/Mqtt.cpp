@@ -83,7 +83,6 @@ void Mqtt::commit(){
     if(enable){
 
         // Config
-        tk->status[STATUS_BIT_MQTT] = false;
         config.user_context = this;  
         config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
         config.uri          = uri.c_str();
@@ -97,6 +96,7 @@ void Mqtt::commit(){
         client = esp_mqtt_client_init(&config);
         esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
         esp_mqtt_client_start(client);
+        
     } 
 
     ESP_LOGI("MQTT", "COMMIT FINISHED");
@@ -111,7 +111,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
         case MQTT_EVENT_BEFORE_CONNECT:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_BEFORE_CONNECT");
             _this->tk->events.emit("MQTT_EVENT_BEFORE_CONNECT");
-            if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
+            _this->tk->status[STATUS_BIT_MQTT] = false;
             break;
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_CONNECTED");
@@ -142,6 +142,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
         case MQTT_EVENT_DATA:{
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DATA");
             _this->tk->events.emit("MQTT_EVENT_DATA");  
+            _this->tk->status[STATUS_BIT_MQTT] = true;
 
             /*
             std::cout << "msg_id: " << event->msg_id << std::endl;
@@ -181,7 +182,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
         }
         case MQTT_EVENT_ERROR:
             ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_ERROR");
-            if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
+            _this->tk->status[STATUS_BIT_MQTT] = false;
             _this->lastError = *event->error_handle;
             _this->tk->events.emit("MQTT_EVENT_ERROR");
             break;

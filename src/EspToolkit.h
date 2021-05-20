@@ -24,7 +24,7 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define FIRMWARE "EspToolkit 1.2.0"
+#define TOOLKITVERSION "EspToolkit 1.2.1"
 
 //  Definitions
 #define LONG                256     
@@ -98,11 +98,11 @@ class EspToolkit{
         static int              cpuFreq;
         static int              logLevel;
         static int              watchdog;
-        static std::string      date;
         static std::string      hostname;
         static std::string      password;
         static bool             locked;
-        static std::string      firmware;
+        static std::string      toolkitVersion;
+        static std::string      appVersion;
 
         //API Commands
         static bool             commandAdd(const char*,void (*)(void* ctx,void (*reply)(const char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);

@@ -13,11 +13,11 @@ bool                    EspToolkit::status[5]{true};
 int                     EspToolkit::cpuFreq{2};
 int                     EspToolkit::logLevel{0};
 int                     EspToolkit::watchdog{60};
-std::string             EspToolkit::date{__DATE__ " " __TIME__};
 std::string             EspToolkit::hostname{"EspToolkit"};
 std::string             EspToolkit::password{"tk"};
 bool                    EspToolkit::locked{false};
-std::string             EspToolkit::firmware{FIRMWARE};
+std::string             EspToolkit::toolkitVersion{TOOLKITVERSION};
+std::string             EspToolkit::appVersion{"generic"};
 
 EspToolkit::EspToolkit(){
 
@@ -541,9 +541,10 @@ void EspToolkit::commandAddDefault(){
 
     commandAdd("status",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         reply("🖥  System:\r\n");
+        snprintf(OUT,LONG,"%-30s : %s\r\n","COMPILED",__DATE__ " " __TIME__);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","IDF Version",esp_get_idf_version());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","FIRMWARE",firmware.c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","COMPILED",date.c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","TOOLKIT Version",toolkitVersion.c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","APP Version",appVersion.c_str());reply(OUT);
         //esp_pm_config_esp32_t pm_config;
         //esp_pm_get_configuration(&pm_config);
         //snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Frequency",getCpuFrequencyMhz());reply(OUT);

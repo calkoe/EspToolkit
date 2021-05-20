@@ -247,8 +247,9 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
 void Network::commit(){
 
-    // Config
     tk->status[STATUS_BIT_NETWORK] = true;
+
+    // Config
     bool sta = sta_enable && !sta_network.empty();
     bool ap  = ap_enable  && !tk->hostname.empty();
     tk->hostname.copy((char*)config_ap.ap.ssid,32,0);
@@ -283,7 +284,6 @@ void Network::commit(){
 	        dns.ip.u_addr.ip4.addr = static_cast<uint32_t>(ipaddr_addr(sta_dns.c_str()));
             esp_netif_set_dns_info(netif_sta,ESP_NETIF_DNS_MAIN,&dns);
         }
-        tk->status[STATUS_BIT_NETWORK] = false;
     }
 
     // MDNS
@@ -333,23 +333,25 @@ void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_STA_START:
             ESP_LOGI("NETWORK", "WIFI_EVENT_STA_START");
             _this->tk->events.emit("WIFI_EVENT_STA_START");
+            _this->tk->status[STATUS_BIT_NETWORK] = false;
             esp_netif_set_hostname(_this->netif_sta,_this->tk->hostname.c_str());
             esp_wifi_connect();
             break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI("NETWORK", "WIFI_EVENT_STA_CONNECTED");
             _this->tk->events.emit("WIFI_EVENT_STA_CONNECTED");
+            _this->tk->status[STATUS_BIT_NETWORK] = true;
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             ESP_LOGI("NETWORK", "WIFI_EVENT_STA_DISCONNECTED");
             _this->tk->events.emit("WIFI_EVENT_STA_DISCONNECTED");
-            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
+            _this->tk->status[STATUS_BIT_NETWORK] = false;
             esp_wifi_connect();
             break;
         case WIFI_EVENT_STA_STOP:
             ESP_LOGI("NETWORK", "WIFI_EVENT_STA_STOP");
             _this->tk->events.emit("WIFI_EVENT_STA_STOP");
-            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
+            _this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
 
         case IP_EVENT_STA_GOT_IP:
@@ -360,7 +362,7 @@ void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t
         case IP_EVENT_STA_LOST_IP:
             ESP_LOGI("NETWORK", "IP_EVENT_STA_LOST_IP");
             _this->tk->events.emit("IP_EVENT_STA_LOST_IP");
-            if(_this->sta_enable)_this->tk->status[STATUS_BIT_NETWORK] = false;
+            _this->tk->status[STATUS_BIT_NETWORK] = false;
             break;
 
         default:
@@ -371,15 +373,3 @@ void Network::wifi_event_handler(void* ctx, esp_event_base_t event_base, int32_t
 int16_t Network::calcRSSI(int32_t r){
     return min(max(2 * (r + 100.0), 0.0), 100.0);
 };
-
-void Network::getApIpStr(char* buf){
-    esp_netif_ip_info_t ipInfo;
-    esp_netif_get_ip_info(netif_ap, &ipInfo);
-    sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
-}
-
-void Network::getStaIpStr(char* buf){
-    esp_netif_ip_info_t ipInfo;
-    esp_netif_get_ip_info(netif_sta, &ipInfo);
-    sprintf(buf, IPSTR, IP2STR(&ipInfo.ip));
-}

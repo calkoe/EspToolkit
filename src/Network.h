@@ -37,8 +37,6 @@ class Network{
         static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
         esp_netif_t* netif_ap;
         esp_netif_t* netif_sta;
-        void     getApIpStr(char* buf);
-        void     getStaIpStr(char* buf);
         int16_t  calcRSSI(int32_t);
         bool     ap_autostart_triggered{false};
 
