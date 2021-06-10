@@ -12,7 +12,6 @@ double      demoDouble{1234.1234};
 std::string demoString{"DEMO"};
 
 struct myStruct_t{
-    std::string str;
     char*       ca;
     int         num;
 };
@@ -40,7 +39,7 @@ void setup()
     // Init Toolkit and Load Variables from NVS
     tk.begin();
 
-    // Commit Wifi Settings (Mqtt commit hooks on SYSTEM_EVENT_STA_GOT_IP)
+    // Commit Wifi Settings (Mqtt commit hooks on IP_EVENT_STA_GOT_IP)
     net.commit();
 
     // Send and Receive MQTT Messages
@@ -57,16 +56,12 @@ void setup()
     // Example: Send and receive custom structs via events as void* 
     tk.events.on(0,"MEINETOPIC",[](void* ctx, void* arg){
         myStruct_t m = *(myStruct_t*)arg;
-        std::cout << "str: " << m.str << std::endl;
         std::cout << "ca: "  << m.ca  << std::endl;
         std::cout << "num: " << m.num << std::endl;
     });
-
-    std::string str = "Das ist ein std::string";
     char*       ca  = "Das ist ein char*";
     int         num = 3245427;
     myStruct_t myStruct = {
-        str,
         ca,
         num
     };

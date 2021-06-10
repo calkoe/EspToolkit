@@ -46,6 +46,8 @@ class Mqtt{
         //CONFIG
         bool                        enable{false};
         std::string                 commandTopic;
+        std::string                 clientCert;
+        std::string                 clientKey;
         std::string                 caCert;
         bool                        caVerify{false};
         std::string                 uri{"mqtt://test.mosquitto.org:1883"};

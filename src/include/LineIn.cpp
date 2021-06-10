@@ -51,7 +51,7 @@ void LineIn::in(char c){
     }
 
     // Echo and Save visible chars
-    if(c >= 32 && c <= 126 || c == '\n'){
+    if((c >= 32 && c <= 126) || c == '\n'){
         char ca[]{c,0};
         onEcho(ca,onEchoArg);
         _buffer[IOC] += c;

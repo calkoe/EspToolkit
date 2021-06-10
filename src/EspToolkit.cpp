@@ -2,7 +2,9 @@
 
 //Global
 PostOffice<std::string> EspToolkit::events(100);
-Uart                    EspToolkit::uart(&events,EVT_TK_COMMAND,EVT_TK_BROADCAST);
+#ifndef TK_DISABLE_UART
+    Uart                    EspToolkit::uart(&events,EVT_TK_COMMAND,EVT_TK_BROADCAST);
+#endif
 SyncTimer               EspToolkit::timer;
 Button                  EspToolkit::button(&events);
 bool                    EspToolkit::isBegin{false};
@@ -430,27 +432,29 @@ void EspToolkit::variablesAddDefault(){
 
 void EspToolkit::commandAddDefault(){
 
-    commandAdd("gpio",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-        if(parCnt == 2){
-            gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
-            gpio_reset_pin(gpio);
-            gpio_set_direction(gpio, GPIO_MODE_INPUT);
-            if(gpio_get_level(gpio)){
-                reply("1\r\n");
+    #ifndef TK_DISABLE_GPIO_COMMAND
+        commandAdd("gpio",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
+            if(parCnt == 2){
+                gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
+                gpio_reset_pin(gpio);
+                gpio_set_direction(gpio, GPIO_MODE_INPUT);
+                if(gpio_get_level(gpio)){
+                    reply("1\r\n");
+                }else{
+                    reply("0\r\n");
+                }
+            }else if(parCnt == 3){
+                gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
+                gpio_reset_pin(gpio);
+                gpio_set_direction(gpio,GPIO_MODE_OUTPUT);
+                gpio_set_level(gpio,atoi(param[2]));
             }else{
-                reply("0\r\n");
+                reply("Invalid parameter!\r\n");
+                commandMan("gpio",reply);
+                return;
             }
-        }else if(parCnt == 3){
-            gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
-            gpio_reset_pin(gpio);
-            gpio_set_direction(gpio,GPIO_MODE_OUTPUT);
-            gpio_set_level(gpio,atoi(param[2]));
-        }else{
-            reply("Invalid parameter!\r\n");
-            commandMan("gpio",reply);
-            return;
-        }
-    },NULL,"🖥  gpio [pin] [0|1]");
+        },NULL,"🖥  gpio [pin] [0|1]");
+    #endif
 
     commandAdd("help",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char* filter = parCnt == 2 ? param[1] : NULL;

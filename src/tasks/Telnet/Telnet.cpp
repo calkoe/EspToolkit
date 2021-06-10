@@ -118,7 +118,7 @@ void Telnet::in(char c){
     }
 
     // Echo and Save visible chars
-    if(c >= 32 && c <= 126 || c == '\n'){
+    if((c >= 32 && c <= 126) || c == '\n'){
         _buffer += c;
         return;
     }

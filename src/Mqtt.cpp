@@ -19,6 +19,8 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
     // Shell
     tk->variableAdd("mqtt/enable",      enable,         "📡  MQTT Enable");
     tk->variableAdd("mqtt/uri",         uri,            "📡  MQTT URI");
+    tk->variableAdd("mqtt/clientCert",  clientCert,     "📡  MQTT CLIENT CERT");
+    tk->variableAdd("mqtt/clientKey",   clientKey,      "📡  MQTT CLIENT KEY");
     tk->variableAdd("mqtt/caCert",      caCert,         "📡  MQTT CA CERT");
     tk->variableAdd("mqtt/caVerify",    caVerify,       "📡  MQTT VERIFY CERT");
     tk->variableAdd("mqtt/cmd",         commandTopic,   "📡  MQTT Receive and send Commands via this topic");
@@ -87,8 +89,12 @@ void Mqtt::commit(){
         config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
         config.uri          = uri.c_str();
         config.buffer_size  = 4096;
+        config.skip_cert_common_name_check = !caVerify;
+        if(!clientCert.empty() && !clientKey.empty()){
+            config.client_cert_pem = clientCert.c_str();
+            config.client_key_pem  = clientKey.c_str();
+        }
         if(!caCert.empty()){
-            config.skip_cert_common_name_check = !caVerify;
             config.cert_pem = caCert.c_str();
         }
         
@@ -236,7 +242,7 @@ void Mqtt::in(char c){
     }
 
     // Echo and Save visible chars
-    if(c >= 32 && c <= 126 || c == '\n'){
+    if((c >= 32 && c <= 126) || c == '\n'){
         _buffer += c;
         return;
     }
