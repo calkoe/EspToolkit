@@ -24,7 +24,7 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define TOOLKITVERSION "EspToolkit 1.2.2"
+#define TOOLKITVERSION "EspToolkit 1.2.3"
 
 // FEATURES
 // #define TK_DISABLE_GPIO_CONTROL

@@ -81,39 +81,17 @@ EspToolkit::EspToolkit(){
 void EspToolkit::begin(){
 
     // Initialize NVS
-    ESP_LOGE("TOOLKIT", "Initializing NVS");
+    ESP_LOGI("TOOLKIT", "Initializing NVS");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
-
-    // Initialize SPIFFS
-    ESP_LOGE("TOOLKIT", "Initializing SPIFFS");
-    esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/s",
-      .partition_label = NULL,
-      .max_files = 10,
-      .format_if_mount_failed = true
-    };
-    ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE("TOOLKIT", "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE("TOOLKIT", "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE("TOOLKIT", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-        }
-    }
-
-    // Initialize Variables
-    ESP_LOGE("TOOLKIT", "Initializing Variables");
     variableLoad();
 
     // Initialize CPU
-    ESP_LOGE("TOOLKIT", "Initializing CPU");
+    ESP_LOGI("TOOLKIT", "Initializing CPU");
     esp_pm_config_esp32_t pm_config;
     switch(cpuFreq){
         case 0:
@@ -147,9 +125,34 @@ void EspToolkit::begin(){
     }
     esp_pm_configure(&pm_config);
 
+    // Initialize SPIFFS
+    ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
+    esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/spiffs",
+      .partition_label = NULL,
+      .max_files = 10,
+      .format_if_mount_failed = false
+    };
+    ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE("TOOLKIT", "Failed to mount or format filesystem");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            ESP_LOGE("TOOLKIT", "Failed to find SPIFFS partition");
+        } else {
+            ESP_LOGE("TOOLKIT", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+        }
+    }
+
+    // Initialize Watchdog
+    ESP_LOGI("TOOLKIT", "Initializing Watchdog");
+    if(watchdog){
+        esp_task_wdt_init(watchdog, true); 
+        esp_task_wdt_add(NULL); 
+    }
 
     // Initialize Logging
-    ESP_LOGE("TOOLKIT", "Initializing Logging");
+    ESP_LOGI("TOOLKIT", "Initializing Logging");
     switch(logLevel){
         case 0:
             esp_log_level_set("*", ESP_LOG_ERROR);
@@ -171,15 +174,8 @@ void EspToolkit::begin(){
             break;
     }
 
-    // Initialize Watchdog
-    ESP_LOGE("TOOLKIT", "Initializing Watchdog");
-    if(watchdog){
-        esp_task_wdt_init(watchdog, true); 
-        esp_task_wdt_add(NULL); 
-    }
-
     //Sys Status
-    ESP_LOGE("TOOLKIT", "Initializing Sys Status");
+    ESP_LOGI("TOOLKIT", "Initializing Sys Status");
     status[STATUS_BIT_SYSTEM] = true;
 
 }
@@ -378,8 +374,8 @@ void EspToolkit::variableLoad(bool save, bool reset){
     esp_err_t ret;
     ret = nvs_open(NVS_DEFAULT_PART_NAME, NVS_READWRITE, &my_handle);
     if (ret != ESP_OK) {
-        ESP_LOGE("TOOLKIT","Opening Non-Volatile Storage (NVS) handle...");
-        //ESP_LOGE("TOOLKIT",esp_err_to_name(ret));
+        ESP_LOGI("TOOLKIT","Opening Non-Volatile Storage (NVS) handle...");
+        //ESP_LOGI("TOOLKIT",esp_err_to_name(ret));
     } else {
         ESP_LOGI("TOOLKIT","Opening Non-Volatile Storage (NVS) Done!");
     }
@@ -565,7 +561,6 @@ void EspToolkit::commandAddDefault(){
         if (ret != ESP_OK) {
             ESP_LOGE("TOOLKIT", "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
         } else {
-            esp_spiffs_info("/", &total, &used);
             snprintf(OUT,LONG,"%-30s : %d Bytes total, %d Bytes used\r\n","SPIFFS",total,used);reply(OUT);
         }
         snprintf(OUT,LONG,"%-30s : %f Hours\r\n","UPTIME",(double)esp_timer_get_time()/1000.0/1000.0/60.0/60.0);reply(OUT);

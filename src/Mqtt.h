@@ -5,8 +5,6 @@
 #include "mqtt_client.h"
 #include "EspToolkit.h"
  
-#define EVT_MQTT_PREFIX "mqtt:"
-
 /**
  * @brief   Mqtt
  * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
@@ -18,7 +16,6 @@ class Mqtt{
 
         static Mqtt* _this;
         EspToolkit* tk;
-        esp_mqtt_client_handle_t client{nullptr};
         std::map<std::string,int> subscriptions;
         static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
         struct simple_cmd_t{
@@ -37,7 +34,8 @@ class Mqtt{
         void publish(std::string topic, const char* message, int qos = 0, int retain = 0);
         void subscribe(std::string topic, int qos = 0);
         void unsubscribe(std::string topic); 
-        esp_mqtt_error_codes_t lastError{};
+        esp_mqtt_client_handle_t client{nullptr};
+        esp_mqtt_error_codes_t   lastError{};
         static void print(const char* text);
 
         //LOW LEVEL CONFIG

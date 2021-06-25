@@ -115,12 +115,12 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
     //esp_mqtt_client_handle_t client = event->client;
     switch ((esp_mqtt_event_id_t)event_id) {
         case MQTT_EVENT_BEFORE_CONNECT:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_BEFORE_CONNECT");
+            ESP_LOGI("MQTT", "MQTT_EVENT_BEFORE_CONNECT");
             _this->tk->events.emit("MQTT_EVENT_BEFORE_CONNECT");
             _this->tk->status[STATUS_BIT_MQTT] = false;
             break;
         case MQTT_EVENT_CONNECTED:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_CONNECTED");
+            ESP_LOGI("MQTT", "MQTT_EVENT_CONNECTED");
             _this->tk->events.emit("MQTT_EVENT_CONNECTED");
             _this->tk->status[STATUS_BIT_MQTT] = true;
             if(!_this->commandTopic.empty()) esp_mqtt_client_subscribe(_this->client, _this->commandTopic.c_str(), 2);
@@ -129,24 +129,24 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             }
             break;
         case MQTT_EVENT_DISCONNECTED:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DISCONNECTED");
+            ESP_LOGI("MQTT", "MQTT_EVENT_DISCONNECTED");
             _this->tk->events.emit("MQTT_EVENT_DISCONNECTED");
             if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
             break;
         case MQTT_EVENT_SUBSCRIBED:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_SUBSCRIBED");
+            ESP_LOGI("MQTT", "MQTT_EVENT_SUBSCRIBED");
             _this->tk->events.emit("MQTT_EVENT_SUBSCRIBED");
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_UNSUBSCRIBED");
+            ESP_LOGI("MQTT", "MQTT_EVENT_UNSUBSCRIBED");
             _this->tk->events.emit("MQTT_EVENT_UNSUBSCRIBED");
             break;
         case MQTT_EVENT_PUBLISHED:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_PUBLISHED");
+            ESP_LOGI("MQTT", "MQTT_EVENT_PUBLISHED");
             _this->tk->events.emit("MQTT_EVENT_PUBLISHED");
             break;
         case MQTT_EVENT_DATA:{
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_DATA");
+            ESP_LOGI("MQTT", "MQTT_EVENT_DATA");
             _this->tk->events.emit("MQTT_EVENT_DATA");  
             _this->tk->status[STATUS_BIT_MQTT] = true;
 
@@ -187,13 +187,13 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             break;
         }
         case MQTT_EVENT_ERROR:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_ERROR");
+            ESP_LOGI("MQTT", "MQTT_EVENT_ERROR");
             _this->tk->status[STATUS_BIT_MQTT] = false;
             _this->lastError = *event->error_handle;
             _this->tk->events.emit("MQTT_EVENT_ERROR");
             break;
         default:
-            ESP_LOGI(EVT_MQTT_PREFIX, "MQTT_EVENT_OTHER id:%d", event->event_id);
+            ESP_LOGI("MQTT", "MQTT_EVENT_OTHER id:%d", event->event_id);
             break;
     }
 }

@@ -8,18 +8,20 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
     // NETIF
     ESP_ERROR_CHECK(esp_netif_init());
-    mdns_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,  &network_event_handler, this));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT,   ESP_EVENT_ANY_ID,  &network_event_handler, this));
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT,  ESP_EVENT_ANY_ID,  &network_event_handler, this));
+
+    // SNTP
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
     // AP BUTTON TOGGLE
     tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
     tk->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
         Network*    _this = (Network*) ctx;
         if(!*(bool*)arg){
-            ESP_LOGE("NETWORK", "TOGGLE AP");
+            ESP_LOGI("NETWORK", "TOGGLE AP");
             _this->ap_enable = !_this->ap_enable;
             _this->tk->variableLoad(true);
             _this->commit();
@@ -86,7 +88,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         esp_wifi_get_mac(WIFI_IF_AP, macAp);
         esp_wifi_get_mac(WIFI_IF_STA, macSta);
         snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",tk->hostname.c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","Network Connectivity",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Ready",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","WIFI Mode",m);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP IP",IP2STR(&ipInfoAp.ip));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP MASK",IP2STR(&ipInfoAp.netmask));reply(OUT);
@@ -114,12 +116,12 @@ Network::Network(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH MASK",IP2STR(&ipInfoEth.netmask));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH GW",IP2STR(&ipInfoEth.gw));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH DNS",IP2STR(&dns_getserver(0)->u_addr.ip4));reply(OUT);
-
-        if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");
+        if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");reply(OUT);
+        sntp_sync_status_t sntp_sync_status = sntp_get_sync_status();
+        snprintf(OUT,LONG,"%-30s : %s\r\n","SNTP Time Sync",sntp_sync_status == SNTP_SYNC_STATUS_COMPLETED ? "true" : "false");reply(OUT);
     },this,  "📶 Wifi status");
     
     tk->commandAdd("netOta",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-
         if(parCnt==2){
 
             // Config OTA
@@ -169,8 +171,8 @@ Network::Network(EspToolkit* tk):tk{tk}{
                     case WIFI_AUTH_WPA2_PSK:        authmode = (char*)"WIFI_AUTH_WPA2_PSK";break;
                     case WIFI_AUTH_WPA_WPA2_PSK:    authmode = (char*)"WIFI_AUTH_WPA_WPA2_PSK";break;
                     case WIFI_AUTH_WPA2_ENTERPRISE: authmode = (char*)"WIFI_AUTH_WPA2_ENTERPRISE";break;
-                    //case WIFI_AUTH_WPA3_PSK: authmode = "WIFI_AUTH_WPA3_PSK";break;
-                    //case WIFI_AUTH_WPA2_WPA3_PSK: authmode = "WIFI_AUTH_WPA2_WPA3_PSK";break;
+                    case WIFI_AUTH_WPA3_PSK:        authmode = (char*)"WIFI_AUTH_WPA3_PSK";break;
+                    case WIFI_AUTH_WPA2_WPA3_PSK:   authmode = (char*)"WIFI_AUTH_WPA2_WPA3_PSK";break;
                     default: authmode = "WIFI_AUTH_UNKNOWN";break;
                 }
                 if (ap_info[i].authmode != WIFI_AUTH_WEP) {
@@ -307,14 +309,11 @@ void Network::commit(){
             esp_netif_config_t netif_eth_cfg = ESP_NETIF_DEFAULT_ETH();
             netif_eth = esp_netif_new((&netif_eth_cfg));
             esp_eth_set_default_handlers(netif_eth);
-
             eth_mac_config_t mac_config  = ETH_MAC_DEFAULT_CONFIG();
             esp_eth_mac_t *mac           = esp_eth_mac_new_esp32(&mac_config);
-
             eth_phy_config_t phy_config  = ETH_PHY_DEFAULT_CONFIG();
             phy_config.phy_addr          = 1;
             esp_eth_phy_t *phy           = esp_eth_phy_new_lan8720(&phy_config);
-
             esp_eth_config_t config      = ETH_DEFAULT_CONFIG(mac, phy);
             ESP_ERROR_CHECK(esp_eth_driver_install(&config, &netif_eth_handle));
             ESP_ERROR_CHECK(esp_netif_attach(netif_eth, esp_eth_new_netif_glue(netif_eth_handle)));
@@ -347,14 +346,14 @@ void Network::commit(){
     }
 
     // MDNS
+    mdns_init();
     mdns_hostname_set(_this->tk->hostname.c_str());
     mdns_instance_name_set(_this->tk->hostname.c_str());
     mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
 
     // SNTP
     if(!static_sntp.empty()){
-        sntp_setoperatingmode(SNTP_OPMODE_POLL);
-        sntp_setservername(0, (char*)static_sntp.c_str());
+        sntp_setservername(0, (char*)_this->static_sntp.c_str());
         sntp_set_sync_interval(10 * 60 * 1000);
         sntp_init();
     }else{
@@ -375,7 +374,7 @@ void Network::commit(){
         esp_eth_stop(netif_eth_handle);
     }
 
-    ESP_LOGE("NETWORK", "COMMIT FINISHED");
+    ESP_LOGI("NETWORK", "COMMIT FINISHED");
 
 };
 
@@ -384,46 +383,46 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
     if(event_base == WIFI_EVENT){
         switch (event_id) {
             case WIFI_EVENT_AP_START:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_AP_START");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_AP_START");
                 _this->tk->events.emit("WIFI_EVENT_AP_START");
                 esp_netif_set_hostname(_this->netif_ap,_this->tk->hostname.c_str());
                 break;
             case SYSTEM_EVENT_AP_STACONNECTED:
-                ESP_LOGE("NETWORK", "SYSTEM_EVENT_AP_STACONNECTED");
+                ESP_LOGI("NETWORK", "SYSTEM_EVENT_AP_STACONNECTED");
                 _this->tk->events.emit("SYSTEM_EVENT_AP_STACONNECTED");
                 break;
             case WIFI_EVENT_AP_STACONNECTED:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_AP_STACONNECTED");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STACONNECTED");
                 _this->tk->events.emit("WIFI_EVENT_AP_STACONNECTED");
                 break;
             case WIFI_EVENT_AP_STADISCONNECTED:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_AP_STADISCONNECTED");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STADISCONNECTED");
                 _this->tk->events.emit("WIFI_EVENT_AP_STADISCONNECTED");
                 break;
             case WIFI_EVENT_AP_STOP:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_AP_STOP");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STOP");
                 _this->tk->events.emit("WIFI_EVENT_AP_STOP");
                 break;
             case WIFI_EVENT_STA_START:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_STA_START");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_STA_START");
                 _this->tk->events.emit("WIFI_EVENT_STA_START");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 esp_netif_set_hostname(_this->netif_sta,_this->tk->hostname.c_str());
                 esp_wifi_connect();
                 break;
             case WIFI_EVENT_STA_CONNECTED:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_STA_CONNECTED");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_STA_CONNECTED");
                 _this->tk->events.emit("WIFI_EVENT_STA_CONNECTED");
                 _this->tk->status[STATUS_BIT_NETWORK] = true;
                 break;
             case WIFI_EVENT_STA_DISCONNECTED:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_STA_DISCONNECTED");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_STA_DISCONNECTED");
                 _this->tk->events.emit("WIFI_EVENT_STA_DISCONNECTED");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 esp_wifi_connect();
                 break;
             case WIFI_EVENT_STA_STOP:
-                ESP_LOGE("NETWORK", "WIFI_EVENT_STA_STOP");
+                ESP_LOGI("NETWORK", "WIFI_EVENT_STA_STOP");
                 _this->tk->events.emit("WIFI_EVENT_STA_STOP");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 break;
@@ -433,25 +432,25 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
     if(event_base == ETH_EVENT){
         switch (event_id) {
             case ETHERNET_EVENT_START:
-                ESP_LOGE("NETWORK", "ETHERNET_EVENT_START");
+                ESP_LOGI("NETWORK", "ETHERNET_EVENT_START");
                 _this->tk->events.emit("ETHERNET_EVENT_START");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 break;
             case ETHERNET_EVENT_CONNECTED:
-                ESP_LOGE("NETWORK", "ETHERNET_EVENT_CONNECTED");
+                ESP_LOGI("NETWORK", "ETHERNET_EVENT_CONNECTED");
                 _this->tk->events.emit("ETHERNET_EVENT_CONNECTED");
                 //uint8_t mac_addr[6]{0};
                 //esp_eth_ioctl(_this->netif_eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
-                //ESP_LOGE("NETWORK", "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+                //ESP_LOGI("NETWORK", "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
                 _this->tk->status[STATUS_BIT_NETWORK] = true;
                 break;
             case ETHERNET_EVENT_DISCONNECTED:
-                ESP_LOGE("NETWORK", "ETHERNET_EVENT_DISCONNECTED");
+                ESP_LOGI("NETWORK", "ETHERNET_EVENT_DISCONNECTED");
                 _this->tk->events.emit("ETHERNET_EVENT_DISCONNECTED");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 break;
             case ETHERNET_EVENT_STOP:
-                ESP_LOGE("NETWORK", "ETHERNET_EVENT_STOP");
+                ESP_LOGI("NETWORK", "ETHERNET_EVENT_STOP");
                 _this->tk->events.emit("ETHERNET_EVENT_STOP");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 break;
@@ -461,17 +460,17 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
     if(event_base == IP_EVENT){
         switch (event_id) {
             case IP_EVENT_STA_GOT_IP:
-                ESP_LOGE("NETWORK", "IP_EVENT_STA_GOT_IP");
+                ESP_LOGI("NETWORK", "IP_EVENT_STA_GOT_IP");
                 _this->tk->events.emit("IP_EVENT_STA_GOT_IP");
                 _this->tk->status[STATUS_BIT_NETWORK] = true;
                 break;
             case IP_EVENT_STA_LOST_IP:
-                ESP_LOGE("NETWORK", "IP_EVENT_STA_LOST_IP");
+                ESP_LOGI("NETWORK", "IP_EVENT_STA_LOST_IP");
                 _this->tk->events.emit("IP_EVENT_STA_LOST_IP");
                 _this->tk->status[STATUS_BIT_NETWORK] = false;
                 break;
             case IP_EVENT_ETH_GOT_IP:
-                ESP_LOGE("NETWORK", "IP_EVENT_ETH_GOT_IP");
+                ESP_LOGI("NETWORK", "IP_EVENT_ETH_GOT_IP");
                 _this->tk->events.emit("IP_EVENT_ETH_GOT_IP");
 
                 esp_netif_ip_info_t ipInfoEth;
