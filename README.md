@@ -78,7 +78,7 @@ void setup()
     tk.events.emit("MEINETOPIC",(void*)&myStruct,sizeof(myStruct_t));
 
     // Listen to GPIO Events
-    tk.button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,100,(char*)"bootbutton100ms");
+    tk.button.add((gpio_num_t)BOOTBUTTON_PIN,GPIO_FLOATING,100,(char*)"bootbutton100ms");
     tk.events.on(0,"bootbutton100ms",[](void* ctx, void* arg){
         if(!*(bool*)arg){
             mqtt.publish((char*)"button",(char*)"PRESSED",0,0);
@@ -86,7 +86,7 @@ void setup()
             mqtt.publish((char*)"button",(char*)"RELEASED",0,0);
         }
     });
-    //tk.button.remove((gpio_num_t)BOOTBUTTON);
+    //tk.button.remove((gpio_num_t)BOOTBUTTON_PIN);
 
 }
 

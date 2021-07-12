@@ -2,7 +2,7 @@
 
 Uart* Uart::_this{nullptr};
 
-Uart::Uart(PostOffice<std::string>* events, const char* commandTopic, const char* broadcastTopic):events{events},commandTopic{commandTopic}{
+Uart::Uart(){
     if(_this) return;
     _this = this;
 
@@ -11,16 +11,7 @@ Uart::Uart(PostOffice<std::string>* events, const char* commandTopic, const char
     },NULL);
 
     lineIn.setOnLine([](char* str, void* ctx){
-        simple_cmd_t simple_cmd{
-            strdup(str), 
-            print
-        };
-        _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
-    },NULL);
-
-    // EVT_TK_BROADCAST -> SERIAL
-    events->on(0,broadcastTopic,[](void* ctx, void* arg){
-        std::cout << (char*)arg;
+        //EspToolkitInstance->commandParseAndCall(str,print);
     },NULL);
 
     // TASK
@@ -28,13 +19,15 @@ Uart::Uart(PostOffice<std::string>* events, const char* commandTopic, const char
         uint8_t c;
 
         // Say Hello!
-        simple_cmd_t simple_cmd{strdup("help"),print};
-        _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
+        // EspToolkitInstance->commandParseAndCall((char*)"help",print);
 
         while(true){
-            while((c = (uint8_t)fgetc(stdin)) != 0xFF) _this->lineIn.in(c);
+            //while((c = (uint8_t)fgetc(stdin)) != 0xFF) _this->lineIn.in(c);
+            while(true)
+                continue;
             vTaskDelay(10);
         }
+
     }, "uart", 2048, NULL, 0, NULL);
     
 };

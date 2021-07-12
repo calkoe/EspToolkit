@@ -15,12 +15,10 @@ class Webserver{
     private:
 
         static Webserver* _this;
-        EspToolkit* tk;
-
 
     public:
 
-        Webserver(EspToolkit*);
+        Webserver();
 
         void start();
         httpd_handle_t server{NULL};

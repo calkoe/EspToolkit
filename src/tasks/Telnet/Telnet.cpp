@@ -3,14 +3,9 @@
 Telnet* Telnet::_this{nullptr};
 
 
-Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic):events{events},commandTopic{commandTopic}{
+Telnet::Telnet(){
     if(_this) return;
     _this = this;
-
-    // EVT_TK_BROADCAST -> SERIAL
-    events->on(0,broadcastTopic,[](void* ctx, void* arg){
-        print((char*)arg);
-    },NULL);
 
     // TASK
     xTaskCreate([](void* ctx){
@@ -51,12 +46,8 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
                 continue;
             }
 
-            // We now have a new client ... lets say hello!
-            simple_cmd_t simple_cmd{
-                strdup("help"), 
-                print
-            };
-            _this->events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
+            // Say Hello!
+            EspToolkitInstance->commandParseAndCall((char*)"help",print);
 
             // Loop reading data.
             char* readBuffer = (char*)malloc(BUFFER_SIZE);
@@ -95,9 +86,6 @@ Telnet::Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadc
     
 }
 
-void Telnet::print(const char* text){
-    send(_this->clientSock, text, strlen(text), 0);
-} 
 
 void Telnet::in(char c){
 
@@ -108,11 +96,7 @@ void Telnet::in(char c){
 
     // Execute
     if(!_marks && c == '\n'){     
-        simple_cmd_t simple_cmd{
-            strdup(_buffer.c_str()), 
-            print
-        };
-        events->emit(_this->commandTopic,(void*)&simple_cmd,sizeof(simple_cmd_t));
+        EspToolkitInstance->commandParseAndCall((char*)_buffer.c_str(),print);
         _buffer.clear();
         return;
     }
@@ -124,3 +108,7 @@ void Telnet::in(char c){
     }
 
 }
+
+void Telnet::print(const char* text){
+    send(_this->clientSock, text, strlen(text), 0);
+} 

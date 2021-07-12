@@ -2,7 +2,7 @@
 
 Webserver* Webserver::_this{nullptr};
 
-Webserver::Webserver(EspToolkit* tk):tk{tk}{
+Webserver::Webserver(){
 
 }
 

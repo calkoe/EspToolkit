@@ -21,28 +21,27 @@
  * @date    4.2021
 */
 
-#define DEFAULT_SCAN_LIST_SIZE 32
+#define NETWORK_DEFAULT_SCAN_LIST_SIZE 32
 class Network{
 
     private:
 
         static Network* _this;
-        EspToolkit* tk{nullptr};
         bool begin{false};
 
     public:
 
         //Global
-        Network(EspToolkit*);
+        Network();
         Telnet*  telnet{nullptr};
         void     commit();
         static void network_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
-        esp_netif_t* netif_ap{nullptr};
-        esp_netif_t* netif_sta{nullptr};
+        esp_netif_t* netif_hotspot{nullptr};
+        esp_netif_t* netif_wifi{nullptr};
         esp_netif_t* netif_eth{nullptr};
         esp_eth_handle_t netif_eth_handle{nullptr};
         int16_t  calcRSSI(int32_t);
-        bool     ap_autostart_triggered{false};
+        bool     hotspot_autostart_triggered{false};
 
         wifi_config_t config_ap = {
             .ap = {
@@ -79,19 +78,19 @@ class Network{
         };
 
         //CONFIG
-        bool        ap_enable{false};
-        bool        ap_autostart{true};
-        bool        sta_enable{false};
-        std::string sta_network;
-        std::string sta_password;
+        bool        hotspot_enable{false};
+        bool        hotspot_autostart{true};
+        bool        wifi_enable{false};
+        std::string wifi_network;
+        std::string wifi_password;
         bool        eth_enable{false};
-        std::string static_ip;
-        std::string static_subnet;
-        std::string static_gateway;
-        std::string static_dns;
-        std::string static_sntp;
+        std::string ip;
+        std::string subnet;
+        std::string gateway;
+        std::string dns;
+        std::string sntp;
         bool        telnet_enable{true};
-        int         ps_type{1};         // WIFI_PS_NONE, WIFI_PS_MIN_MODEM, WIFI_PS_MAX_MODEM
+        int         wifi_powerSave{1};     
         std::string ota_caCert;
     
 };
