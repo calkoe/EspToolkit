@@ -90,14 +90,14 @@ class EspToolkit{
         PostOffice<std::string>     events{100};
         Button                      button{&events};
         SyncTimer                   timer;
-        Uart*                       uart{nullptr};
+        Uart                        uart;
 
         //CONFIG
         bool                        status[5]{true};
         int                         cpuFreq{2};
         int                         logLevel{0};
         int                         watchdog{60};
-        std::string                 hostname{"EspToolkit"};;
+        std::string                 hostname;
         std::string                 password{"tk"};
         bool                        locked{false};
         std::string                 appVersion{"generic"};
@@ -118,10 +118,8 @@ class EspToolkit{
 };
 
 // Globals
-static EspToolkit*                  EspToolkitInstance{nullptr};
-static char                         OUT[LONG]{0};
-
-
+extern EspToolkit*                  EspToolkitInstance;
+extern char                         OUT[LONG];
 static double                       mapVal(double, int, int, int, int);
 static inline bool                  sign(double i){return i < 0;};
 static inline double                min(double a, double b){return (a < b ? a : b);};

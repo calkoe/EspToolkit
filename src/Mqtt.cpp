@@ -12,13 +12,13 @@ Mqtt::Mqtt(){
     },this);
 
     // Shell
-    EspToolkitInstance->variableAdd("mqtt/enable",      enable,         "📡  MQTT Enable");
-    EspToolkitInstance->variableAdd("mqtt/uri",         uri,            "📡  MQTT URI");
-    EspToolkitInstance->variableAdd("mqtt/clientCert",  clientCert,     "📡  MQTT CLIENT CERT");
-    EspToolkitInstance->variableAdd("mqtt/clientKey",   clientKey,      "📡  MQTT CLIENT KEY");
-    EspToolkitInstance->variableAdd("mqtt/caCert",      caCert,         "📡  MQTT CA CERT");
-    EspToolkitInstance->variableAdd("mqtt/caVerify",    caVerify,       "📡  MQTT VERIFY CERT");
-    EspToolkitInstance->variableAdd("mqtt/commandTopic",commandTopic,   "📡  MQTT Receive and send Commands via this topic");
+    EspToolkitInstance->variableAdd("mqtt/enable",      enable,         "📡 MQTT Enable");
+    EspToolkitInstance->variableAdd("mqtt/uri",         uri,            "📡 MQTT URI");
+    EspToolkitInstance->variableAdd("mqtt/clientCert",  clientCert,     "📡 MQTT CLIENT CERT");
+    EspToolkitInstance->variableAdd("mqtt/clientKey",   clientKey,      "📡 MQTT CLIENT KEY");
+    EspToolkitInstance->variableAdd("mqtt/caCert",      caCert,         "📡 MQTT CA CERT");
+    EspToolkitInstance->variableAdd("mqtt/caVerify",    caVerify,       "📡 MQTT VERIFY CERT");
+    EspToolkitInstance->variableAdd("mqtt/commandTopic",commandTopic,   "📡 MQTT Receive and send Commands via this topic");
 
     EspToolkitInstance->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
@@ -84,6 +84,8 @@ void Mqtt::commit(){
         config.client_id    = EspToolkitInstance->hostname.empty() ? "EspToolkit" : EspToolkitInstance->hostname.c_str();
         config.uri          = uri.c_str();
         config.buffer_size  = 4096;
+        config.task_prio    = 5;
+        config.task_stack   = 8192;
         config.skip_cert_common_name_check = !caVerify;
         if(!clientCert.empty() && !clientKey.empty()){
             config.client_cert_pem = clientCert.c_str();

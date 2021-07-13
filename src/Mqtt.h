@@ -31,10 +31,8 @@ class Mqtt{
         void publish(std::string topic, const char* message, int qos = 0, int retain = 0);
         void subscribe(std::string topic, int qos = 0);
         void unsubscribe(std::string topic); 
-        esp_mqtt_client_handle_t client{nullptr};
-        esp_mqtt_error_codes_t   lastError{};
-
-        //LOW LEVEL CONFIG
+        esp_mqtt_client_handle_t    client{nullptr};
+        esp_mqtt_error_codes_t      lastError{};
         esp_mqtt_client_config_t    config{};
 
         //CONFIG

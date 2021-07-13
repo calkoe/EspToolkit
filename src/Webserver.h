@@ -10,6 +10,8 @@
  * @date    6.2021
 */
 
+void captdnsInit(void);
+
 class Webserver{
 
     private:

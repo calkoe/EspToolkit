@@ -8,6 +8,14 @@ EspToolkit::EspToolkit(){
     }
     EspToolkitInstance = this;
 
+    // ADD VARIABLES AND ADD COMMANDS
+    variablesAddDefault();
+    commandAddDefault();
+
+}
+
+void EspToolkit::begin(){
+
     // Status LED Task
     for(uint8_t i{0};i<5;i++) status[i] = true;
     status[STATUS_BIT_SYSTEM] = false;
@@ -31,7 +39,7 @@ EspToolkit::EspToolkit(){
                 }
                 vTaskDelay(2000);
             }
-        }, "statusled", 2048, this, 0, NULL);
+        }, "statusled", 2048, this, 1, NULL);
     }
     
     // REGISTER RESET BUTTON
@@ -44,20 +52,14 @@ EspToolkit::EspToolkit(){
         }
     },this);
 
-    // LOAD VARIABLES AND ADD COMMANDS
-    variablesAddDefault();
-    commandAddDefault();
+    // GENERATE Hostname
+    uint8_t baseMac[6];
+    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+    char baseMacChr[20] = {0};
+    sprintf(baseMacChr, "EspToolkit-%02X%02X%02X", baseMac[3], baseMac[4], baseMac[5]);
+    hostname = std::string(baseMacChr);
 
-    // Initialize UART
-    #ifndef TK_DISABLE_UART
-        uart = new Uart;
-    #endif
-
-}
-
-void EspToolkit::begin(){
-
-    // Initialize NVS
+    // Initialize and load NVS
     ESP_LOGI("TOOLKIT", "Initializing NVS");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -295,8 +297,8 @@ void EspToolkit::commandParseAndCall(char* ca, void (*reply)(const char*)){
         }
     }
 
-    //Prefix
-    snprintf(OUT,LONG,"%s:/>",hostname.c_str());
+    //Display Prefix
+    snprintf(OUT,LONG,"%s>",hostname.c_str());
     reply(OUT);
 
 };
@@ -344,7 +346,6 @@ void EspToolkit::variableLoad(bool save, bool reset){
     ret = nvs_open(NVS_DEFAULT_PART_NAME, NVS_READWRITE, &my_handle);
     if (ret != ESP_OK) {
         ESP_LOGI("TOOLKIT","Opening Non-Volatile Storage (NVS) handle...");
-        //ESP_LOGI("TOOLKIT",esp_err_to_name(ret));
     } else {
         ESP_LOGI("TOOLKIT","Opening Non-Volatile Storage (NVS) Done!");
     }
@@ -545,7 +546,10 @@ void EspToolkit::commandAddDefault(){
     },NULL,"🖥  Print active syncTimers");
 };
 
-//TOOLS
+// Globals
+EspToolkit*  EspToolkitInstance{nullptr};
+char         OUT[LONG]{0};
+
 double mapVal(double x, int in_min, int in_max, int out_min, int out_max)
 {
     double r = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;

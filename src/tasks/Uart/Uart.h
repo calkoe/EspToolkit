@@ -6,6 +6,10 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
+#include "linenoise/linenoise.h"
+#include "esp_vfs_dev.h"
+#include "driver/uart.h"
+
 #include "../../include/LineIn.h"
 
 /**

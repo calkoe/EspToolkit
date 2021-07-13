@@ -82,7 +82,7 @@ Telnet::Telnet(){
         }
 
 
-    }, "telnet", 2048, NULL, 0, NULL);
+    }, "telnet", 4096, NULL, 1, NULL);
     
 }
 

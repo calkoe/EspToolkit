@@ -8,9 +8,15 @@ Webserver::Webserver(){
 
 void Webserver::start(){
 
+
+
     /* Start the file server */
     ESP_ERROR_CHECK(start_file_server("/spiffs"));
 
+    /* Start Captive DNS Server */
+    captdnsInit();
+
+   
 
 /*
     // Server Config 
@@ -28,4 +34,5 @@ void Webserver::start(){
         ESP_LOGE("WWW", "Error starting server! %s", esp_err_to_name(err));
     }
 */
+
 }
