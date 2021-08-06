@@ -43,6 +43,7 @@ class Network{
         int16_t  calcRSSI(int32_t);
         bool     hotspot_autostart_triggered{false};
 
+        //CONFIG
         wifi_config_t config_ap = {
             .ap = {
                 .ssid = {},
@@ -77,7 +78,6 @@ class Network{
             }
         };
 
-        //CONFIG
         bool        hotspot_enable{false};
         bool        hotspot_autostart{true};
         bool        wifi_enable{false};

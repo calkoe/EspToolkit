@@ -16,6 +16,8 @@
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "esp_event.h"
+#include "esp_sleep.h"
+#include "esp32-hal-cpu.h"
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 
@@ -24,7 +26,7 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define TOOLKITVERSION "EspToolkit 1.3.0"
+#define TOOLKITVERSION "EspToolkit 1.3.1"
 
 // FEATURES
 // #define TK_DISABLE_GPIO_CONTROL
@@ -33,7 +35,6 @@
 //  Definitions
 #define LONG                256     
 #define SERSPEED            115200 
-#define BOOTBUTTON_PIN      0
 
 // Status
 #define STATUS_BIT_DEFAULT  0
@@ -41,8 +42,6 @@
 #define STATUS_BIT_NETWORK  2
 #define STATUS_BIT_MQTT     3
 #define STATUS_BIT_APP1     4
-#define STATUS_LED_PIN      2
-#define STATUS_LED_ON       1
 
 /**
  * @brief   EspToolkit
@@ -83,7 +82,7 @@ class EspToolkit{
 
     public:   
 
-        //TOOLS
+        // TOOLS
         EspToolkit();
         void                        begin();
         void                        loop();
@@ -92,17 +91,22 @@ class EspToolkit{
         SyncTimer                   timer;
         Uart                        uart;
 
-        //CONFIG
-        bool                        status[5]{true};
-        int                         cpuFreq{2};
-        int                         logLevel{0};
-        int                         watchdog{60};
+        // CONFIG
         std::string                 hostname;
         std::string                 password{"tk"};
         bool                        locked{false};
-        std::string                 appVersion{"generic"};
+        int                         logLevel{0};
+        int                         cpuFreq{2};
 
-        //API Commands
+        // API
+        std::string                 appVersion{"generic"};
+        int                         configButtonPin{-1};
+        int                         statusLedPin{-1};
+        bool                        statusLedActive{true};
+        bool                        status[5]{true};
+        int                         watchdog{-1};
+
+        // API Commands
         bool                        commandAdd(const char*,void (*)(void* ctx,void (*reply)(const char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);
         void                        commandList(const char*,void (*reply)(const char*));
         void                        commandMan(const char*, void (*reply)(const char*));

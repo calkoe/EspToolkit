@@ -19,38 +19,40 @@ void EspToolkit::begin(){
     // Status LED Task
     for(uint8_t i{0};i<5;i++) status[i] = true;
     status[STATUS_BIT_SYSTEM] = false;
-    if(STATUS_LED_PIN>=0){
+    if(statusLedPin>=0){
         xTaskCreate([](void* arg){
             EspToolkit* _this = (EspToolkit*) arg;
-            gpio_reset_pin((gpio_num_t)STATUS_LED_PIN);
-            gpio_set_direction((gpio_num_t)STATUS_LED_PIN, GPIO_MODE_OUTPUT);
+            gpio_reset_pin((gpio_num_t)EspToolkitInstance->statusLedPin);
+            gpio_set_direction((gpio_num_t)EspToolkitInstance->statusLedPin, GPIO_MODE_OUTPUT);
             while(true){
                 bool allSet{true};
                 for(uint8_t i{0};i<5;i++) if(!_this->status[i]) allSet = false;
                 if(allSet){
-                    gpio_set_level((gpio_num_t)STATUS_LED_PIN,STATUS_LED_ON);
+                    gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,EspToolkitInstance->statusLedActive);
                     continue;  
                 }
                 for(uint8_t i{0};i<5;i++){
-                    if(_this->status[i]) gpio_set_level((gpio_num_t)STATUS_LED_PIN,STATUS_LED_ON);
+                    if(_this->status[i]) gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,EspToolkitInstance->statusLedActive);
                     vTaskDelay(150);
-                    gpio_set_level((gpio_num_t)STATUS_LED_PIN,!STATUS_LED_ON);
+                    gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,!EspToolkitInstance->statusLedActive);
                     vTaskDelay(150);
                 }
                 vTaskDelay(2000);
             }
-        }, "statusled", 2048, this, 1, NULL);
+        }, "statusled", 2048, this, 0, NULL);
     }
     
     // REGISTER RESET BUTTON
-    button.add((gpio_num_t)BOOTBUTTON_PIN,GPIO_FLOATING,5000,"bootbutton5000ms");
-    events.on(0,"bootbutton5000ms",[](void* ctx, void* arg){
-        if(!*(bool*)arg){
-            ESP_LOGE("TOOLKIT", "BUTTON RESET");
-            EspToolkitInstance->variableLoad(false,true);
-            esp_restart();
-        }
-    },this);
+    if(configButtonPin>=0){
+        button.add((gpio_num_t)configButtonPin,GPIO_FLOATING,5000,"bootbutton5000ms");
+        events.on(0,"bootbutton5000ms",[](void* ctx, void* arg){
+            if(!*(bool*)arg){
+                ESP_LOGE("TOOLKIT", "BUTTON RESET");
+                EspToolkitInstance->variableLoad(false,true);
+                esp_restart();
+            }
+        },this);
+    }
 
     // GENERATE Hostname
     uint8_t baseMac[6];
@@ -74,35 +76,18 @@ void EspToolkit::begin(){
     esp_pm_config_esp32_t pm_config;
     switch(cpuFreq){
         case 0:
-            pm_config = {
-                .max_freq_mhz = 80,
-                .min_freq_mhz = 80,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(80); 
             break;
         case 1:
-            pm_config = {
-                .max_freq_mhz = 160,
-                .min_freq_mhz = 160,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(160); 
             break;
         case 2:
-            pm_config = {
-                .max_freq_mhz = 240,
-                .min_freq_mhz = 240,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(240); 
             break;
         default:
-            pm_config = {
-                .max_freq_mhz = 240,
-                .min_freq_mhz = 240,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(240); 
             break;
     }
-    esp_pm_configure(&pm_config);
 
     // Initialize SPIFFS
     ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
@@ -125,9 +110,11 @@ void EspToolkit::begin(){
 
     // Initialize Watchdog
     ESP_LOGI("TOOLKIT", "Initializing Watchdog");
-    if(watchdog){
+    if(watchdog>0){
         esp_task_wdt_init(watchdog, true); 
         esp_task_wdt_add(NULL); 
+    }else{
+        esp_task_wdt_deinit();
     }
 
     // Initialize Logging
@@ -515,9 +502,12 @@ void EspToolkit::commandAddDefault(){
         snprintf(OUT,LONG,"%-30s : %s\r\n","IDF Version",esp_get_idf_version());reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","TOOLKIT Version",TOOLKITVERSION);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","APP Version",EspToolkitInstance->appVersion.c_str());reply(OUT);
-        //esp_pm_config_esp32_t pm_config;
-        //esp_pm_get_configuration(&pm_config);
-        //snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Frequency",getCpuFrequencyMhz());reply(OUT);
+        /*esp_pm_config_esp32_t pm_config;
+        esp_pm_get_configuration(&pm_config);
+        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Max Freq",pm_config.max_freq_mhz);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Min Freq",pm_config.min_freq_mhz);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","CPU light sleep enabled",pm_config.light_sleep_enable ? "true" : "false");reply(OUT);*/
+        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Freq",getCpuFrequencyMhz());reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes FREE, %d Bytes MIN FREE\r\n","HEAP",esp_get_free_heap_size(),esp_get_minimum_free_heap_size());reply(OUT);
         nvs_stats_t nvs_stats;
         esp_err_t ret = nvs_get_stats(NVS_DEFAULT_PART_NAME, &nvs_stats);

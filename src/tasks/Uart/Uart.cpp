@@ -6,18 +6,18 @@ Uart::Uart(){
     if(_this) return;
     _this = this;
 
-    fflush(stdout);
-    fsync(fileno(stdout));
+    //fflush(stdout);
+    //fsync(fileno(stdout));
 
     /* Disable buffering on stdin */
-    setvbuf(stdin, NULL, _IONBF, 0);
+    //setvbuf(stdin, NULL, _IONBF, 0);
 
     /* Minicom, screen, idf_monitor send CR when ENTER key is pressed */
-    esp_vfs_dev_uart_port_set_rx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CR);
+    //esp_vfs_dev_uart_port_set_rx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CR);
     /* Move the caret to the beginning of the next line on '\n' */
-    esp_vfs_dev_uart_port_set_tx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CRLF);
+    //esp_vfs_dev_uart_port_set_tx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CRLF);
 
-    const uart_config_t uart_config = {
+    /*const uart_config_t uart_config = {
         .baud_rate  = CONFIG_ESP_CONSOLE_UART_BAUDRATE,
         .data_bits  = UART_DATA_8_BITS,
         .parity     = UART_PARITY_DISABLE,
@@ -27,13 +27,14 @@ Uart::Uart(){
         #else
                 .source_clk = UART_SCLK_XTAL,
         #endif
-    };
+    };*/
+    
     /* Install UART driver for interrupt-driven reads and writes */
-    ESP_ERROR_CHECK( uart_driver_install(CONFIG_ESP_CONSOLE_UART_NUM,256, 0, 0, NULL, 0) );
-    ESP_ERROR_CHECK( uart_param_config(CONFIG_ESP_CONSOLE_UART_NUM, &uart_config) );
+    //ESP_ERROR_CHECK( uart_driver_install(CONFIG_ESP_CONSOLE_UART_NUM,256, 0, 0, NULL, 0) );
+    //ESP_ERROR_CHECK( uart_param_config(CONFIG_ESP_CONSOLE_UART_NUM, &uart_config) );
 
     /* Tell VFS to use UART driver */
-    esp_vfs_dev_uart_use_driver(CONFIG_ESP_CONSOLE_UART_NUM);
+    //esp_vfs_dev_uart_use_driver(CONFIG_ESP_CONSOLE_UART_NUM);
 
     /* Config line In */
     lineIn.setOnEcho([](char* str, void* ctx){

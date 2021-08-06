@@ -16,17 +16,19 @@ Network::Network(){
     // SNTP
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
-    // AP BUTTON TOGGLE
-    EspToolkitInstance->button.add((gpio_num_t)BOOTBUTTON_PIN,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
-    EspToolkitInstance->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
-        Network*    _this = (Network*) ctx;
-        if(!*(bool*)arg){
-            ESP_LOGI("NETWORK", "TOGGLE AP");
-            _this->hotspot_enable = !_this->hotspot_enable;
-            EspToolkitInstance->variableLoad(true);
-            _this->commit();
-        }
-    },this);
+    // REGISTER RESET BUTTON AP TOGGLE BUTTON
+    if(EspToolkitInstance->configButtonPin>=0){
+        EspToolkitInstance->button.add((gpio_num_t)EspToolkitInstance->configButtonPin,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
+        EspToolkitInstance->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
+            Network*    _this = (Network*) ctx;
+            if(!*(bool*)arg){
+                ESP_LOGI("NETWORK", "TOGGLE AP");
+                _this->hotspot_enable = !_this->hotspot_enable;
+                EspToolkitInstance->variableLoad(true);
+                _this->commit();
+            }
+        },this);
+    }
 
     // AP Autostart
     EspToolkitInstance->timer.setInterval([](void* ctx){
@@ -43,7 +45,7 @@ Network::Network(){
             }
         }
         
-    },this,10000,"hotspot autostart");
+    },10000,this,"hotspot autostart");
 
     // CONFIG VARIABLES
     EspToolkitInstance->variableAdd("hotspot/enable",    hotspot_enable,    "📶 Enable WiFi Hotspot");
@@ -64,7 +66,7 @@ Network::Network(){
     // COMMANDS
     EspToolkitInstance->commandAdd("netStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         Network*    _this   = (Network*) ctx;
-        char OUT[LONG];
+        
         reply((char*)"📶 Network:\r\n");
         wifi_mode_t mode;
         const char* m;
@@ -144,7 +146,7 @@ Network::Network(){
     },this,"📶 [url] | load and install new firmware from URL (https only!)");
 
     EspToolkitInstance->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+        
         Network*    _this = (Network*) ctx;
         wifi_mode_t mode;
         esp_wifi_get_mode(&mode);
@@ -203,7 +205,7 @@ Network::Network(){
     },this, "📶 Scans for nearby networks");
 
     EspToolkitInstance->commandAdd("netCommit",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+        
         Network*    _this = (Network*) ctx;
         if(parCnt>=2){
                 snprintf(OUT,LONG,"Set  wifi/enabled: %s\r\n","true");reply(OUT);
@@ -222,7 +224,7 @@ Network::Network(){
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
     
     EspToolkitInstance->commandAdd("netDns",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+        
         Network*    _this = (Network*) ctx;
         if(parCnt>=2){
             ip_addr_t ip_Addr;
@@ -472,7 +474,7 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
 
                 esp_netif_ip_info_t ipInfoEth;
                 esp_netif_get_ip_info(_this->netif_eth, &ipInfoEth);
-                char OUT[LONG];
+                
                 snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH IP",IP2STR(&ipInfoEth.ip));
                 std:: cout << OUT;
 

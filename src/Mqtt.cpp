@@ -18,7 +18,7 @@ Mqtt::Mqtt(){
     EspToolkitInstance->variableAdd("mqtt/clientKey",   clientKey,      "📡 MQTT CLIENT KEY");
     EspToolkitInstance->variableAdd("mqtt/caCert",      caCert,         "📡 MQTT CA CERT");
     EspToolkitInstance->variableAdd("mqtt/caVerify",    caVerify,       "📡 MQTT VERIFY CERT");
-    EspToolkitInstance->variableAdd("mqtt/commandTopic",commandTopic,   "📡 MQTT Receive and send Commands via this topic");
+    EspToolkitInstance->variableAdd("mqtt/cmdTopic",    cmdTopic,   "📡 MQTT Receive and send Commands via this topic");
 
     EspToolkitInstance->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
@@ -120,7 +120,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             ESP_LOGI("MQTT", "MQTT_EVENT_CONNECTED");
             EspToolkitInstance->events.emit("MQTT_EVENT_CONNECTED");
             EspToolkitInstance->status[STATUS_BIT_MQTT] = true;
-            if(!_this->commandTopic.empty()) esp_mqtt_client_subscribe(_this->client, _this->commandTopic.c_str(), 2);
+            if(!_this->cmdTopic.empty()) esp_mqtt_client_subscribe(_this->client, _this->cmdTopic.c_str(), 2);
             for (auto const& x : _this->subscriptions){
                 esp_mqtt_client_subscribe(_this->client, x.first.c_str(), x.second);
             }
@@ -165,7 +165,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             snprintf(data,  event->data_len + 1, "%.*s", event->data_len, event->data);
 
             // Commands Topic
-            if(!_this->commandTopic.empty() && _this->commandTopic == std::string(topic)){
+            if(!_this->cmdTopic.empty() && _this->cmdTopic == std::string(topic)){
 
                 // Process Input
                 for (int i{0}; i<event->data_len; i++){
@@ -238,5 +238,5 @@ void Mqtt::in(char c){
 }
 
 void Mqtt::print(const char* text){
-    if(!_this->commandTopic.empty()) _this->publish(_this->commandTopic + "/reply",text,2,0);
+    if(!_this->cmdTopic.empty()) _this->publish(_this->cmdTopic + "/reply",text,2,0);
 };

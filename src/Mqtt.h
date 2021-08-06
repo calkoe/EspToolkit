@@ -42,6 +42,6 @@ class Mqtt{
         std::string                 clientKey;
         std::string                 caCert;
         bool                        caVerify{false};
-        std::string                 commandTopic;
+        std::string                 cmdTopic;
 
 };
