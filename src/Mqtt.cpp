@@ -2,30 +2,25 @@
 
 Mqtt* Mqtt::_this{nullptr};
 
-Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
+Mqtt::Mqtt(){
     if(_this) return;
     _this = this;
 
     // Commit on WiFi Connected
-    tk->events.on(0,"IP_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
+    EspToolkitInstance->events.on(0,"IP_EVENT_STA_GOT_IP",[](void* ctx, void* arg){
         _this->commit();
     },this);
 
-    // EVT_TK_BROADCAST -> SERIAL
-    tk->events.on(0,EVT_TK_BROADCAST,[](void* ctx, void* arg){
-        print((char*)arg);
-    },NULL);
-
     // Shell
-    tk->variableAdd("mqtt/enable",      enable,         "📡  MQTT Enable");
-    tk->variableAdd("mqtt/uri",         uri,            "📡  MQTT URI");
-    tk->variableAdd("mqtt/clientCert",  clientCert,     "📡  MQTT CLIENT CERT");
-    tk->variableAdd("mqtt/clientKey",   clientKey,      "📡  MQTT CLIENT KEY");
-    tk->variableAdd("mqtt/caCert",      caCert,         "📡  MQTT CA CERT");
-    tk->variableAdd("mqtt/caVerify",    caVerify,       "📡  MQTT VERIFY CERT");
-    tk->variableAdd("mqtt/cmd",         commandTopic,   "📡  MQTT Receive and send Commands via this topic");
+    EspToolkitInstance->variableAdd("mqtt/enable",      enable,         "📡 MQTT Enable");
+    EspToolkitInstance->variableAdd("mqtt/uri",         uri,            "📡 MQTT URI");
+    EspToolkitInstance->variableAdd("mqtt/clientCert",  clientCert,     "📡 MQTT CLIENT CERT");
+    EspToolkitInstance->variableAdd("mqtt/clientKey",   clientKey,      "📡 MQTT CLIENT KEY");
+    EspToolkitInstance->variableAdd("mqtt/caCert",      caCert,         "📡 MQTT CA CERT");
+    EspToolkitInstance->variableAdd("mqtt/caVerify",    caVerify,       "📡 MQTT VERIFY CERT");
+    EspToolkitInstance->variableAdd("mqtt/cmdTopic",    cmdTopic,   "📡 MQTT Receive and send Commands via this topic");
 
-    tk->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
+    EspToolkitInstance->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
         if(parCnt==2){
             snprintf(OUT,128,"Set  mqtt/enable: %s\r\n","true");
@@ -33,22 +28,22 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
             snprintf(OUT,128,"Set  mqtt/uri: %s\r\n",param[1]);
             _this->uri = param[1];
         };
-        _this->tk->variableLoad(true);
+        EspToolkitInstance->variableLoad(true);
         _this->commit();
         reply((char*)"DONE! ✅ > Type 'mqttStatus' to check status\r\n");
     }, NULL, "📡 [mqtt/uri] | Apply mqtt settings and connect to configured mqtt server",false);
 
-    tk->commandAdd("mqttPublish",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+    EspToolkitInstance->commandAdd("mqttPublish",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         if(parCnt>=3){
             _this->publish(param[1],param[2]);
             reply((char*)"📨 Message sent!\r\n");
         };
     },NULL,"📡 [topic] [message] | publish a message to topic",false);
 
-    tk->commandAdd("mqttStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+    EspToolkitInstance->commandAdd("mqttStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         char OUT[128];
         snprintf(OUT,LONG,"%-30s : %s\r\n","Enable",_this->enable ? "true" : "false");reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","Connected",_this->tk->status[STATUS_BIT_MQTT]  ? "true" : "false");reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Connected",EspToolkitInstance->status[STATUS_BIT_MQTT]  ? "true" : "false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_last_esp_err",esp_err_to_name(_this->lastError.esp_tls_last_esp_err));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_stack_err",strerror(_this->lastError.esp_tls_stack_err));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","esp_tls_cert_verify_flags",strerror(_this->lastError.esp_tls_cert_verify_flags));reply(OUT);
@@ -75,7 +70,7 @@ Mqtt::Mqtt(EspToolkit* tk):tk{tk}{
 
 void Mqtt::commit(){   
 
-    tk->status[STATUS_BIT_MQTT] = true;
+    EspToolkitInstance->status[STATUS_BIT_MQTT] = true;
 
     if(client){
         esp_mqtt_client_disconnect(client);
@@ -86,9 +81,11 @@ void Mqtt::commit(){
 
         // Config
         config.user_context = this;  
-        config.client_id    = tk->hostname.empty() ? "EspToolkit" : tk->hostname.c_str();
+        config.client_id    = EspToolkitInstance->hostname.empty() ? "EspToolkit" : EspToolkitInstance->hostname.c_str();
         config.uri          = uri.c_str();
         config.buffer_size  = 4096;
+        config.task_prio    = 5;
+        config.task_stack   = 8192;
         config.skip_cert_common_name_check = !caVerify;
         if(!clientCert.empty() && !clientKey.empty()){
             config.client_cert_pem = clientCert.c_str();
@@ -116,39 +113,39 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
     switch ((esp_mqtt_event_id_t)event_id) {
         case MQTT_EVENT_BEFORE_CONNECT:
             ESP_LOGI("MQTT", "MQTT_EVENT_BEFORE_CONNECT");
-            _this->tk->events.emit("MQTT_EVENT_BEFORE_CONNECT");
-            _this->tk->status[STATUS_BIT_MQTT] = false;
+            EspToolkitInstance->events.emit("MQTT_EVENT_BEFORE_CONNECT");
+            EspToolkitInstance->status[STATUS_BIT_MQTT] = false;
             break;
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI("MQTT", "MQTT_EVENT_CONNECTED");
-            _this->tk->events.emit("MQTT_EVENT_CONNECTED");
-            _this->tk->status[STATUS_BIT_MQTT] = true;
-            if(!_this->commandTopic.empty()) esp_mqtt_client_subscribe(_this->client, _this->commandTopic.c_str(), 2);
+            EspToolkitInstance->events.emit("MQTT_EVENT_CONNECTED");
+            EspToolkitInstance->status[STATUS_BIT_MQTT] = true;
+            if(!_this->cmdTopic.empty()) esp_mqtt_client_subscribe(_this->client, _this->cmdTopic.c_str(), 2);
             for (auto const& x : _this->subscriptions){
                 esp_mqtt_client_subscribe(_this->client, x.first.c_str(), x.second);
             }
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI("MQTT", "MQTT_EVENT_DISCONNECTED");
-            _this->tk->events.emit("MQTT_EVENT_DISCONNECTED");
-            if(_this->enable)_this->tk->status[STATUS_BIT_MQTT] = false;
+            EspToolkitInstance->events.emit("MQTT_EVENT_DISCONNECTED");
+            if(_this->enable)EspToolkitInstance->status[STATUS_BIT_MQTT] = false;
             break;
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI("MQTT", "MQTT_EVENT_SUBSCRIBED");
-            _this->tk->events.emit("MQTT_EVENT_SUBSCRIBED");
+            EspToolkitInstance->events.emit("MQTT_EVENT_SUBSCRIBED");
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
             ESP_LOGI("MQTT", "MQTT_EVENT_UNSUBSCRIBED");
-            _this->tk->events.emit("MQTT_EVENT_UNSUBSCRIBED");
+            EspToolkitInstance->events.emit("MQTT_EVENT_UNSUBSCRIBED");
             break;
         case MQTT_EVENT_PUBLISHED:
             ESP_LOGI("MQTT", "MQTT_EVENT_PUBLISHED");
-            _this->tk->events.emit("MQTT_EVENT_PUBLISHED");
+            EspToolkitInstance->events.emit("MQTT_EVENT_PUBLISHED");
             break;
         case MQTT_EVENT_DATA:{
             ESP_LOGI("MQTT", "MQTT_EVENT_DATA");
-            _this->tk->events.emit("MQTT_EVENT_DATA");  
-            _this->tk->status[STATUS_BIT_MQTT] = true;
+            EspToolkitInstance->events.emit("MQTT_EVENT_DATA");  
+            EspToolkitInstance->status[STATUS_BIT_MQTT] = true;
 
             /*
             std::cout << "msg_id: " << event->msg_id << std::endl;
@@ -168,7 +165,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             snprintf(data,  event->data_len + 1, "%.*s", event->data_len, event->data);
 
             // Commands Topic
-            if(!_this->commandTopic.empty() && _this->commandTopic == std::string(topic)){
+            if(!_this->cmdTopic.empty() && _this->cmdTopic == std::string(topic)){
 
                 // Process Input
                 for (int i{0}; i<event->data_len; i++){
@@ -179,7 +176,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             }
            
             // Event
-            _this->tk->events.emit(topic,(void*)data,event->data_len  + 1);
+            EspToolkitInstance->events.emit(topic,(void*)data,event->data_len  + 1);
 
             // CleanUp
             delete topic;
@@ -188,9 +185,9 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
         }
         case MQTT_EVENT_ERROR:
             ESP_LOGI("MQTT", "MQTT_EVENT_ERROR");
-            _this->tk->status[STATUS_BIT_MQTT] = false;
+            EspToolkitInstance->status[STATUS_BIT_MQTT] = false;
             _this->lastError = *event->error_handle;
-            _this->tk->events.emit("MQTT_EVENT_ERROR");
+            EspToolkitInstance->events.emit("MQTT_EVENT_ERROR");
             break;
         default:
             ESP_LOGI("MQTT", "MQTT_EVENT_OTHER id:%d", event->event_id);
@@ -218,12 +215,7 @@ void Mqtt::unsubscribe(std::string topic){
     if(client) esp_mqtt_client_unsubscribe(client, topic.c_str());
 }; 
 
-void Mqtt::print(const char* text){
-    if(!_this->commandTopic.empty()) _this->publish(_this->commandTopic + "/reply",text,2,0);
-};
-
 void Mqtt::in(char c){
-
 
     // Toogle Marks
     if(c == '"'){
@@ -232,11 +224,7 @@ void Mqtt::in(char c){
 
     // Execute
     if(!_marks && c == '\n'){     
-        simple_cmd_t simple_cmd{
-            strdup(_buffer.c_str()), 
-            print
-        };
-        tk->events.emit(EVT_TK_COMMAND,(void*)&simple_cmd,sizeof(simple_cmd_t));
+        EspToolkitInstance->commandParseAndCall((char*)_buffer.c_str(),print);
         _buffer.clear();
         return;
     }
@@ -248,3 +236,7 @@ void Mqtt::in(char c){
     }
 
 }
+
+void Mqtt::print(const char* text){
+    if(!_this->cmdTopic.empty()) _this->publish(_this->cmdTopic + "/reply",text,2,0);
+};

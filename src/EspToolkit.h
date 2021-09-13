@@ -16,6 +16,8 @@
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "esp_event.h"
+#include "esp_sleep.h"
+#include "esp32-hal-cpu.h"
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 
@@ -24,7 +26,7 @@
 #include "tasks/Button/Button.h"
 #include "tasks/Uart/Uart.h"
 
-#define TOOLKITVERSION "EspToolkit 1.2.3"
+#define TOOLKITVERSION "EspToolkit 1.3.1"
 
 // FEATURES
 // #define TK_DISABLE_GPIO_CONTROL
@@ -33,13 +35,6 @@
 //  Definitions
 #define LONG                256     
 #define SERSPEED            115200 
-#define STATUSLED           2
-#define STATUSLEDON         1
-#define BOOTBUTTON          0
-
-// Events
-#define EVT_TK_BROADCAST    "tk:broadcast"
-#define EVT_TK_COMMAND      "tk:command"
 
 // Status
 #define STATUS_BIT_DEFAULT  0
@@ -51,8 +46,9 @@
 /**
  * @brief   EspToolkit
  * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
- * @date    4.2021
+ * @date    7.2021
 */
+
 class EspToolkit{
     
     private:
@@ -77,56 +73,60 @@ class EspToolkit{
             AOS_VAR*    aos_var;
         };
 
-        static bool             isBegin;
-        static char             OUT[LONG];
-        static AOS_CMD*         aos_cmd;
-        static AOS_VAR*         aos_var;
-        static bool             _variableAdd(const char*,void*,const char*,bool,bool,AOS_DT);
-        static void             variablesAddDefault();
-        static void             commandAddDefault();
+        bool             isBegin{false};
+        AOS_CMD*         aos_cmd{nullptr};
+        AOS_VAR*         aos_var{nullptr};
+        bool             _variableAdd(const char*,void*,const char*,bool,bool,AOS_DT);
+        void             variablesAddDefault();
+        void             commandAddDefault();
 
     public:   
 
-        //Global
+        // TOOLS
         EspToolkit();
-        static void                         begin();
-        static void                         loop();
-        static PostOffice<std::string>      events;
-        static Uart                         uart;
-        static SyncTimer                    timer;
-        static Button                       button;
-        static void                         broadcast(const char* msg);
+        void                        begin();
+        void                        loop();
+        PostOffice<std::string>     events{100};
+        Button                      button{&events};
+        SyncTimer                   timer;
+        Uart                        uart;
 
-        //API Settings
-        static bool             status[];
-        static int              cpuFreq;
-        static int              logLevel;
-        static int              watchdog;
-        static std::string      hostname;
-        static std::string      password;
-        static bool             locked;
-        static std::string      toolkitVersion;
-        static std::string      appVersion;
+        // CONFIG
+        std::string                 hostname;
+        std::string                 password{"tk"};
+        bool                        locked{false};
+        int                         logLevel{0};
+        int                         cpuFreq{2};
 
-        //API Commands
-        static bool             commandAdd(const char*,void (*)(void* ctx,void (*reply)(const char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);
-        static void             commandList(const char*,void (*reply)(const char*));
-        static void             commandMan(const char*, void (*reply)(const char*));
-        static bool             commandCall(const char*,void (*reply)(const char*),char** = 0, uint8_t = 0);
-        static void             commandParseAndCall(char* ca,void (*reply)(const char*));
+        // API
+        std::string                 appVersion{"generic"};
+        int                         configButtonPin{-1};
+        int                         statusLedPin{-1};
+        bool                        statusLedActive{true};
+        bool                        status[5]{true};
+        int                         watchdog{-1};
+
+        // API Commands
+        bool                        commandAdd(const char*,void (*)(void* ctx,void (*reply)(const char*),char** arg, uint8_t argLen),void* ctx,const char* = "",bool = false);
+        void                        commandList(const char*,void (*reply)(const char*));
+        void                        commandMan(const char*, void (*reply)(const char*));
+        bool                        commandCall(const char*,void (*reply)(const char*),char** = 0, uint8_t = 0);
+        void                        commandParseAndCall(char* ca,void (*reply)(const char*));
 
         //API Variables
-        static bool             variableAdd(const char*,bool&,  const char* = "",bool = false,bool = false);
-        static bool             variableAdd(const char*,int&,   const char* = "",bool = false,bool = false);
-        static bool             variableAdd(const char*,double&,const char* = "",bool = false,bool = false);
-        static bool             variableAdd(const char*,std::string&,const char* = "",bool = false,bool = false);
-        static void             variableLoad(bool save = false, bool reset = false);
+        bool                        variableAdd(const char*,bool&,  const char* = "",bool = false,bool = false);
+        bool                        variableAdd(const char*,int&,   const char* = "",bool = false,bool = false);
+        bool                        variableAdd(const char*,double&,const char* = "",bool = false,bool = false);
+        bool                        variableAdd(const char*,std::string&,const char* = "",bool = false,bool = false);
+        void                        variableLoad(bool save = false, bool reset = false);
 };
 
-// Tools
-double                          mapVal(double, int, int, int, int);
-inline bool                     sign(double i){return i < 0;};
-inline double                   min(double a, double b){return (a < b ? a : b);};
-inline double                   max(double a, double b){return (a > b ? a : b);};
-std::vector<std::string>        split(std::string s, std::string delimiter);
-char*                           loadFile(const char* filename);
+// Globals
+extern EspToolkit*                  EspToolkitInstance;
+extern char                         OUT[LONG];
+static double                       mapVal(double, int, int, int, int);
+static inline bool                  sign(double i){return i < 0;};
+static inline double                min(double a, double b){return (a < b ? a : b);};
+static inline double                max(double a, double b){return (a > b ? a : b);};
+static std::vector<std::string>     split(std::string s, std::string delimiter);
+static char*                        loadFile(const char* filename);

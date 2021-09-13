@@ -1,86 +1,67 @@
 #include "EspToolkit.h"
 
-//Global
-PostOffice<std::string> EspToolkit::events(100);
-#ifndef TK_DISABLE_UART
-    Uart                    EspToolkit::uart(&events,EVT_TK_COMMAND,EVT_TK_BROADCAST);
-#endif
-SyncTimer               EspToolkit::timer;
-Button                  EspToolkit::button(&events);
-bool                    EspToolkit::isBegin{false};
-EspToolkit::AOS_CMD*    EspToolkit::aos_cmd{nullptr};
-EspToolkit::AOS_VAR*    EspToolkit::aos_var{nullptr};
-char                    EspToolkit::OUT[LONG]{0};
-bool                    EspToolkit::status[5]{true};
-int                     EspToolkit::cpuFreq{2};
-int                     EspToolkit::logLevel{0};
-int                     EspToolkit::watchdog{60};
-std::string             EspToolkit::hostname{"EspToolkit"};
-std::string             EspToolkit::password{"tk"};
-bool                    EspToolkit::locked{false};
-std::string             EspToolkit::toolkitVersion{TOOLKITVERSION};
-std::string             EspToolkit::appVersion{"generic"};
-
 EspToolkit::EspToolkit(){
 
-    // Status LED
-    for(uint8_t i{0};i<5;i++) status[i] = true;
-    status[STATUS_BIT_SYSTEM] = false;
-    if(STATUSLED>=0){
-        xTaskCreate([](void* arg){
-            EspToolkit* _this = (EspToolkit*) arg;
-            gpio_reset_pin((gpio_num_t)STATUSLED);
-            gpio_set_direction((gpio_num_t)STATUSLED, GPIO_MODE_OUTPUT);
-            while(true){
-                bool allSet{true};
-                for(uint8_t i{0};i<5;i++) if(!_this->status[i]) allSet = false;
-                if(allSet){
-                    gpio_set_level((gpio_num_t)STATUSLED,STATUSLEDON);
-                    continue;  
-                }
-                for(uint8_t i{0};i<5;i++){
-                    if(_this->status[i]) gpio_set_level((gpio_num_t)STATUSLED,STATUSLEDON);
-                    vTaskDelay(150);
-                    gpio_set_level((gpio_num_t)STATUSLED,!STATUSLEDON);
-                    vTaskDelay(150);
-                }
-                vTaskDelay(2000);
-            }
-        }, "statusled", 2048, this, 1, NULL);
+    if(EspToolkitInstance){
+        ESP_LOGE("TOOLKIT", "ONYL ONE INSTANCE OF EspToolkit IS ALLOWED!");
+        return;
     }
-    
-    // BUTTON RESET
-    button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,5000,"bootbutton5000ms");
-    events.on(0,"bootbutton5000ms",[](void* ctx, void* arg){
-        if(!*(bool*)arg){
-            ESP_LOGE("TOOLKIT", "BUTTON RESET");
-            variableLoad(false,true);
-            esp_restart();
-        }
-    },this);
+    EspToolkitInstance = this;
 
-    // Command Parser
-    events.on(0,EVT_TK_COMMAND,[](void* ctx, void* arg){
-        EspToolkit* _this = (EspToolkit*) arg;
-        struct simple_cmd_t{
-            char* payload;
-            void  (*reply)(const char* str);
-        };
-        simple_cmd_t simple_cmd = *(simple_cmd_t*) arg;
-        //printf("Command Parser got: %s\r\n",simple_cmd.payload);
-        _this->commandParseAndCall(simple_cmd.payload,simple_cmd.reply);
-        free((void*)simple_cmd.payload);
-    },this);
-
-
-    // Toolkit
+    // ADD VARIABLES AND ADD COMMANDS
     variablesAddDefault();
     commandAddDefault();
 
 }
+
 void EspToolkit::begin(){
 
-    // Initialize NVS
+    // Status LED Task
+    for(uint8_t i{0};i<5;i++) status[i] = true;
+    status[STATUS_BIT_SYSTEM] = false;
+    if(statusLedPin>=0){
+        xTaskCreate([](void* arg){
+            EspToolkit* _this = (EspToolkit*) arg;
+            gpio_reset_pin((gpio_num_t)EspToolkitInstance->statusLedPin);
+            gpio_set_direction((gpio_num_t)EspToolkitInstance->statusLedPin, GPIO_MODE_OUTPUT);
+            while(true){
+                bool allSet{true};
+                for(uint8_t i{0};i<5;i++) if(!_this->status[i]) allSet = false;
+                if(allSet){
+                    gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,EspToolkitInstance->statusLedActive);
+                    continue;  
+                }
+                for(uint8_t i{0};i<5;i++){
+                    if(_this->status[i]) gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,EspToolkitInstance->statusLedActive);
+                    vTaskDelay(150);
+                    gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,!EspToolkitInstance->statusLedActive);
+                    vTaskDelay(150);
+                }
+                vTaskDelay(2000);
+            }
+        }, "statusled", 2048, this, 0, NULL);
+    }
+    
+    // REGISTER RESET BUTTON
+    if(configButtonPin>=0){
+        button.add((gpio_num_t)configButtonPin,GPIO_FLOATING,5000,"bootbutton5000ms");
+        events.on(0,"bootbutton5000ms",[](void* ctx, void* arg){
+            if(!*(bool*)arg){
+                ESP_LOGE("TOOLKIT", "BUTTON RESET");
+                EspToolkitInstance->variableLoad(false,true);
+                esp_restart();
+            }
+        },this);
+    }
+
+    // GENERATE Hostname
+    uint8_t baseMac[6];
+    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+    char baseMacChr[20] = {0};
+    sprintf(baseMacChr, "EspToolkit-%02X%02X%02X", baseMac[3], baseMac[4], baseMac[5]);
+    hostname = std::string(baseMacChr);
+
+    // Initialize and load NVS
     ESP_LOGI("TOOLKIT", "Initializing NVS");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -95,35 +76,18 @@ void EspToolkit::begin(){
     esp_pm_config_esp32_t pm_config;
     switch(cpuFreq){
         case 0:
-            pm_config = {
-                .max_freq_mhz = 80,
-                .min_freq_mhz = 80,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(80); 
             break;
         case 1:
-            pm_config = {
-                .max_freq_mhz = 160,
-                .min_freq_mhz = 160,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(160); 
             break;
         case 2:
-            pm_config = {
-                .max_freq_mhz = 240,
-                .min_freq_mhz = 240,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(240); 
             break;
         default:
-            pm_config = {
-                .max_freq_mhz = 240,
-                .min_freq_mhz = 240,
-                .light_sleep_enable = false
-            };
+            setCpuFrequencyMhz(240); 
             break;
     }
-    esp_pm_configure(&pm_config);
 
     // Initialize SPIFFS
     ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
@@ -146,9 +110,11 @@ void EspToolkit::begin(){
 
     // Initialize Watchdog
     ESP_LOGI("TOOLKIT", "Initializing Watchdog");
-    if(watchdog){
+    if(watchdog>0){
         esp_task_wdt_init(watchdog, true); 
         esp_task_wdt_add(NULL); 
+    }else{
+        esp_task_wdt_deinit();
     }
 
     // Initialize Logging
@@ -174,7 +140,7 @@ void EspToolkit::begin(){
             break;
     }
 
-    //Sys Status
+    //Initialize Sys Status
     ESP_LOGI("TOOLKIT", "Initializing Sys Status");
     status[STATUS_BIT_SYSTEM] = true;
 
@@ -184,13 +150,6 @@ void EspToolkit::loop(){
     if(watchdog) esp_task_wdt_reset(); 
     timer.loop();
     events.loop(0);
-};
-
-/**
- *  Emits a Message event to EVT_TK_BROADCAST 
- */
-void EspToolkit::broadcast(const char* msg){
-    events.emit(EVT_TK_BROADCAST,(void*)msg,strlen(msg)+1);
 };
 
 /**
@@ -325,8 +284,8 @@ void EspToolkit::commandParseAndCall(char* ca, void (*reply)(const char*)){
         }
     }
 
-    //Prefix
-    snprintf(OUT,LONG,"%s:/>",hostname.c_str());
+    //Display Prefix
+    snprintf(OUT,LONG,"%s>",hostname.c_str());
     reply(OUT);
 
 };
@@ -355,7 +314,6 @@ bool EspToolkit::_variableAdd(const char* name,void* value,const char* descripti
                 i->protect      = protect;
                 i->aos_dt       = aos_dt;
                 delete b;
-                
                 return true;
             }
             i = i->aos_var;
@@ -375,7 +333,6 @@ void EspToolkit::variableLoad(bool save, bool reset){
     ret = nvs_open(NVS_DEFAULT_PART_NAME, NVS_READWRITE, &my_handle);
     if (ret != ESP_OK) {
         ESP_LOGI("TOOLKIT","Opening Non-Volatile Storage (NVS) handle...");
-        //ESP_LOGI("TOOLKIT",esp_err_to_name(ret));
     } else {
         ESP_LOGI("TOOLKIT","Opening Non-Volatile Storage (NVS) Done!");
     }
@@ -419,11 +376,11 @@ void EspToolkit::variableLoad(bool save, bool reset){
 };
 
 void EspToolkit::variablesAddDefault(){
-    variableAdd("sys/hostname", hostname,   "🖥  System Hostname");
-    variableAdd("sys/password", password,   "🖥  System Password");
-    variableAdd("sys/locked",   locked,     "🖥  Locked");
-    variableAdd("sys/cpuFreq",  cpuFreq,    "🖥  CPU Speed: 0=80MHz | 1=160MHz | 2=240MHz");
-    variableAdd("sys/loglevel", logLevel,   "🖥  Loglevel: 0=Error | 1=Warning | 2=info | 3=Debug | 4=Verbose");
+    variableAdd("hostname", hostname,   "🖥  System Hostname");
+    variableAdd("password", password,   "🖥  System Password");
+    variableAdd("locked",   locked,     "🖥  Locked");
+    variableAdd("cpuFreq",  cpuFreq,    "🖥  CPU Speed: 0=80MHz | 1=160MHz | 2=240MHz");
+    variableAdd("loglevel", logLevel,   "🖥  Loglevel: 0=Error | 1=Warning | 2=info | 3=Debug | 4=Verbose");
 };
 
 void EspToolkit::commandAddDefault(){
@@ -446,7 +403,7 @@ void EspToolkit::commandAddDefault(){
                 gpio_set_level(gpio,atoi(param[2]));
             }else{
                 reply("Invalid parameter!\r\n");
-                commandMan("gpio",reply);
+                EspToolkitInstance->commandMan("gpio",reply);
                 return;
             }
         },NULL,"🖥  gpio [pin] [0|1]");
@@ -455,7 +412,7 @@ void EspToolkit::commandAddDefault(){
     commandAdd("help",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char* filter = parCnt == 2 ? param[1] : NULL;
         reply("\r\nCommands:\r\n");
-        AOS_CMD* i{aos_cmd};
+        AOS_CMD* i{EspToolkitInstance->aos_cmd};
         while(i != nullptr){
             if(!i->hidden && (!filter || strstr(i->name, filter))){
                 snprintf(OUT,LONG, "%-30s %s\r\n",i->name,i->description);reply(OUT);
@@ -467,7 +424,7 @@ void EspToolkit::commandAddDefault(){
     commandAdd("get",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         char* filter = parCnt == 2 ? param[1] : NULL;
         reply("Variables:\r\n");
-        AOS_VAR* i{aos_var};
+        AOS_VAR* i{EspToolkitInstance->aos_var};
         while(i != nullptr){
             if(!i->hidden && (!filter || strstr(i->name, filter))){ 
                 if(i->aos_dt==AOS_DT_BOOL)   snprintf(OUT,LONG,"%-30s : %-40s\t%s %s\r\n", i->name,*(bool*)(i->value) ? "true" : "false",i->description,(i->protect ? "(Protected)":""));
@@ -495,12 +452,12 @@ void EspToolkit::commandAddDefault(){
     commandAdd("set",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         if(parCnt < 2 || parCnt > 3){
             reply("Invalid parameter!\r\n");
-            commandMan("set",reply);
+            EspToolkitInstance->commandMan("set",reply);
             return;
         }
         char* name  = param[1];
         char* value = parCnt == 3 ? param[2] : NULL;
-        AOS_VAR* i{aos_var};
+        AOS_VAR* i{EspToolkitInstance->aos_var};
         while(i != nullptr){
             if(!strcmp(i->name,name)){
                 if(i->protect){
@@ -511,7 +468,7 @@ void EspToolkit::commandAddDefault(){
                 if(i->aos_dt==AOS_DT_INT)       *(int*)(i->value)         = !value ? 0       : atoi(value);
                 if(i->aos_dt==AOS_DT_DOUBLE)    *(double*)(i->value)      = !value ? 0.0     : atof(value); 
                 if(i->aos_dt==AOS_DT_STRING)    *(std::string*)(i->value) = !value ? "" : value;
-                variableLoad(true);
+                EspToolkitInstance->variableLoad(true);
                 reply("ok\r\n");
                 return;
             }
@@ -526,8 +483,8 @@ void EspToolkit::commandAddDefault(){
 
     commandAdd("lock",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         reply("SYSTEM LOCKED!\r\n");
-        locked=true;
-        variableLoad(true);
+        EspToolkitInstance->locked=true;
+        EspToolkitInstance->variableLoad(true);
     },NULL,"🖥  lock current shell");
 
     commandAdd("reboot",[](void*, void (*reply)(const char*), char** param,uint8_t parCnt){
@@ -535,7 +492,7 @@ void EspToolkit::commandAddDefault(){
     },NULL,"🖥  Reboot");
 
     commandAdd("reset",[](void*c , void (*reply)(const char*), char** param,uint8_t parCnt){
-        variableLoad(false,true);
+        EspToolkitInstance->variableLoad(false,true);
         esp_restart();
     },NULL,"🖥  Reset Values stored in NVS to defaults");
 
@@ -543,11 +500,14 @@ void EspToolkit::commandAddDefault(){
         reply("🖥  System:\r\n");
         snprintf(OUT,LONG,"%-30s : %s\r\n","COMPILED",__DATE__ " " __TIME__);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","IDF Version",esp_get_idf_version());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","TOOLKIT Version",toolkitVersion.c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","APP Version",appVersion.c_str());reply(OUT);
-        //esp_pm_config_esp32_t pm_config;
-        //esp_pm_get_configuration(&pm_config);
-        //snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Frequency",getCpuFrequencyMhz());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","TOOLKIT Version",TOOLKITVERSION);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","APP Version",EspToolkitInstance->appVersion.c_str());reply(OUT);
+        /*esp_pm_config_esp32_t pm_config;
+        esp_pm_get_configuration(&pm_config);
+        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Max Freq",pm_config.max_freq_mhz);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Min Freq",pm_config.min_freq_mhz);reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","CPU light sleep enabled",pm_config.light_sleep_enable ? "true" : "false");reply(OUT);*/
+        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Freq",getCpuFrequencyMhz());reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes FREE, %d Bytes MIN FREE\r\n","HEAP",esp_get_free_heap_size(),esp_get_minimum_free_heap_size());reply(OUT);
         nvs_stats_t nvs_stats;
         esp_err_t ret = nvs_get_stats(NVS_DEFAULT_PART_NAME, &nvs_stats);
@@ -572,11 +532,14 @@ void EspToolkit::commandAddDefault(){
     },NULL,"🖥  Print system information");
 
     commandAdd("timers", [](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
-        timer.printTasks(reply);
+        EspToolkitInstance->timer.printTasks(reply);
     },NULL,"🖥  Print active syncTimers");
 };
 
-//TOOLS
+// Globals
+EspToolkit*  EspToolkitInstance{nullptr};
+char         OUT[LONG]{0};
+
 double mapVal(double x, int in_min, int in_max, int out_min, int out_max)
 {
     double r = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;

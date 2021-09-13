@@ -37,8 +37,8 @@ class SyncTimer{
             const char*            EOL{"\r\n"};
 
             SyncTimer();
-            uint16_t         setInterval(void(*)(void* ctx),void* ctx,uint16_t intervall,const char* name = "");
-            uint16_t         setTimeout(void(*)(void* ctx),void* ctx,uint16_t timeout,const char* name = "",bool = false);
+            uint16_t         setInterval(void(*)(void* ctx),uint16_t intervall,void* ctx = nullptr,const char* name = "");
+            uint16_t         setTimeout(void(*)(void* ctx),uint16_t timeout,void* ctx = nullptr,const char* name = "",bool = false);
             AOS_TASK*        unsetInterval(uint16_t id);
             void             loop();
             void             printTasks(void (*reply)(const char*));
@@ -58,8 +58,8 @@ inline SyncTimer::SyncTimer(){
  * @param  intervall
  * @return intervall Id
 */
-inline uint16_t SyncTimer::setInterval(void(*f)(void*),void* a,uint16_t i,const char* description){
-    return setTimeout(f,a,i,description,true);
+inline uint16_t SyncTimer::setInterval(void(*f)(void*),uint16_t i,void* a,const char* description){
+    return setTimeout(f,i,a,description,true);
 };
 
 /**
@@ -70,7 +70,7 @@ inline uint16_t SyncTimer::setInterval(void(*f)(void*),void* a,uint16_t i,const 
  * @param  repeat 
  * @return timeout Id
 */
-inline uint16_t SyncTimer::setTimeout(void(*f)(void*),void* ctx,uint16_t i, const char* description, bool repeat){
+inline uint16_t SyncTimer::setTimeout(void(*f)(void*), uint16_t i, void* ctx, const char* description, bool repeat){
     if(i <= 0) return 0;
     lock();
     static uint16_t idSerial{1};

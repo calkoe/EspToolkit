@@ -15,7 +15,7 @@ class LineIn{
 
     private:
 
-        unsigned char   IOC;
+        unsigned char   IOC{0};
 
         std::string     _buffer[2];
         bool            _marks[2]{false};
@@ -28,7 +28,6 @@ class LineIn{
         enum ESC_T      { ESC_STATE_NONE, ESC_STATE_START, ESC_STATE_CODE} inEsc {ESC_STATE_NONE};
 
     public:
-
 
         LineIn();
 

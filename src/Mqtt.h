@@ -15,39 +15,33 @@ class Mqtt{
     private:
 
         static Mqtt* _this;
-        EspToolkit* tk;
         std::map<std::string,int> subscriptions;
         static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
-        struct simple_cmd_t{
-            char* payload;
-            void  (*reply)(const char* str);
-        };
+       
         std::string _buffer;
         bool _marks{false};
         void in(char);
+        static void print(const char* text);
 
     public:
 
         //Global
-        Mqtt(EspToolkit*);
+        Mqtt();
         void commit();
         void publish(std::string topic, const char* message, int qos = 0, int retain = 0);
         void subscribe(std::string topic, int qos = 0);
         void unsubscribe(std::string topic); 
-        esp_mqtt_client_handle_t client{nullptr};
-        esp_mqtt_error_codes_t   lastError{};
-        static void print(const char* text);
-
-        //LOW LEVEL CONFIG
+        esp_mqtt_client_handle_t    client{nullptr};
+        esp_mqtt_error_codes_t      lastError{};
         esp_mqtt_client_config_t    config{};
 
         //CONFIG
         bool                        enable{false};
-        std::string                 commandTopic;
+        std::string                 uri{"mqtt://test.mosquitto.org:1883"};
         std::string                 clientCert;
         std::string                 clientKey;
         std::string                 caCert;
         bool                        caVerify{false};
-        std::string                 uri{"mqtt://test.mosquitto.org:1883"};
+        std::string                 cmdTopic;
 
 };

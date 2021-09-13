@@ -11,7 +11,7 @@
 #include <errno.h>
 #include "sdkconfig.h"
 
-#include "../../include/PostOffice.h"
+#include "../../EspToolkit.h"
 
 #define BUFFER_SIZE 128
 
@@ -25,20 +25,14 @@ class Telnet{
     private:
 
         static Telnet* _this;
-        PostOffice<std::string>* events;
-        char* commandTopic;
-        char* broadcastTopic;
-        struct simple_cmd_t{
-            char* payload;
-            void  (*reply)(const char* str);
-        };
-        std::string _buffer;
-        bool _marks{false};
+        
+        std::string     _buffer;
+        bool            _marks{false};
         void in(char);
+        static void print(const char* text);
 
     public:
 
-        Telnet(PostOffice<std::string>* events, char* commandTopic, char* broadcastTopic);
+        Telnet();
         int clientSock;
-        static void print(const char* text);
 };

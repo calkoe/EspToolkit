@@ -27,7 +27,7 @@ void LineIn::in(char c){
         return;     
     }                            
 
-    // BACKSPACE or DEL
+    // Handle BACKSPACE or DEL
     if(c == 8 || c == 127){     
         if(_buffer[IOC].back() == '"') _marks[IOC] = !_marks[IOC];                 
         if(!_buffer[IOC].empty()){

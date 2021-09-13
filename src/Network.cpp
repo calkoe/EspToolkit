@@ -2,7 +2,7 @@
 
 Network* Network::_this{nullptr};
 
-Network::Network(EspToolkit* tk):tk{tk}{
+Network::Network(){
     if(_this) return;
     _this = this;
 
@@ -16,57 +16,58 @@ Network::Network(EspToolkit* tk):tk{tk}{
     // SNTP
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
-    // AP BUTTON TOGGLE
-    tk->button.add((gpio_num_t)BOOTBUTTON,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
-    tk->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
-        Network*    _this = (Network*) ctx;
-        if(!*(bool*)arg){
-            ESP_LOGI("NETWORK", "TOGGLE AP");
-            _this->ap_enable = !_this->ap_enable;
-            _this->tk->variableLoad(true);
-            _this->commit();
-        }
-    },this);
+    // REGISTER RESET BUTTON AP TOGGLE BUTTON
+    if(EspToolkitInstance->configButtonPin>=0){
+        EspToolkitInstance->button.add((gpio_num_t)EspToolkitInstance->configButtonPin,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
+        EspToolkitInstance->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
+            Network*    _this = (Network*) ctx;
+            if(!*(bool*)arg){
+                ESP_LOGI("NETWORK", "TOGGLE AP");
+                _this->ap_enable = !_this->ap_enable;
+                EspToolkitInstance->variableLoad(true);
+                _this->commit();
+            }
+        },this);
+    }
 
     // AP Autostart
-    tk->timer.setInterval([](void* ctx){
+    EspToolkitInstance->timer.setInterval([](void* ctx){
         Network*    _this = (Network*) ctx;
         if(_this->ap_autostart){
-            if(!_this->ap_enable && !_this->ap_autostart_triggered && (!_this->sta_enable || !_this->tk->status[STATUS_BIT_NETWORK])){
-            _this->ap_autostart_triggered = true;
+            if(!_this->ap_enable && !_this->hotspot_autostart_triggered && (!_this->wifi_enable || !EspToolkitInstance->status[STATUS_BIT_NETWORK])){
+            _this->hotspot_autostart_triggered = true;
             _this->ap_enable = true;
             _this->commit();
-            }else if(_this->ap_enable && _this->ap_autostart_triggered && _this->sta_enable && _this->tk->status[STATUS_BIT_NETWORK]){
-                _this->ap_autostart_triggered = false;
+            }else if(_this->ap_enable && _this->hotspot_autostart_triggered && _this->wifi_enable && EspToolkitInstance->status[STATUS_BIT_NETWORK]){
+                _this->hotspot_autostart_triggered = false;
                 _this->ap_enable = false;
                 _this->commit();
             }
         }
         
-    },this,10000,"hotspot autostart");
+    },10000,this,"hotspot autostart");
 
     // CONFIG VARIABLES
-    tk->variableAdd("hotspot/enable",    ap_enable,         "📶 Enable WiFi Hotspot");
-    tk->variableAdd("hotspot/autostart", ap_autostart,      "📶 Start Hotspot if threre is no STA connection aviable");
-    tk->variableAdd("wifi/enable",       sta_enable,        "📶 Enable WiFi STA");
-    tk->variableAdd("wifi/network",      sta_network,       "📶 Network SSID");
-    tk->variableAdd("wifi/password",     sta_password,      "📶 Network Password");
-    tk->variableAdd("wifi/powerSafe",    ps_type,           "📶 WiFI Power Safe: 0=WIFI_PS_NONE | 1=WIFI_PS_MIN_MODEM | 2=WIFI_PS_MAX_MODEM");
-    tk->variableAdd("eth/enable",        eth_enable,        "📶 Enable ETH Interface");
-    tk->variableAdd("net/ip",            static_ip,         "📶 Static IP      (leave blank to use DHCP)");
-    tk->variableAdd("net/subnet",        static_subnet,     "📶 Static Subnet  (leave blank to use DHCP)");
-    tk->variableAdd("net/gateway",       static_gateway,    "📶 Static Gateway (leave blank to use DHCP)");
-    tk->variableAdd("net/dns",           static_dns,        "📶 Static DNS     (leave blank to use DHCP)");
-    tk->variableAdd("net/sntp",          static_sntp,       "📶 Static SNTP Server for time synchronisation (leave blank to disable)");
-    tk->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
-    tk->variableAdd("ota/caCert",        ota_caCert,        "📶 CA Certificate for OTA Updates");
+    EspToolkitInstance->variableAdd("ap/enable",         ap_enable,    "📶 Enable WiFi Hotspot");
+    EspToolkitInstance->variableAdd("ap/autostart",      ap_autostart, "📶 Start Hotspot if threre is no STA connection aviable");
+    EspToolkitInstance->variableAdd("wifi/enable",       wifi_enable,       "📶 Enable WiFi STA");
+    EspToolkitInstance->variableAdd("wifi/network",      wifi_network,      "📶 Network SSID");
+    EspToolkitInstance->variableAdd("wifi/password",     wifi_password,     "📶 Network Password");
+    EspToolkitInstance->variableAdd("wifi/powerSafe",    wifi_powerSave,    "📶 WiFI Power Safe: 0=WIFI_PS_NONE | 1=WIFI_PS_MIN_MODEM | 2=WIFI_PS_MAX_MODEM");
+    EspToolkitInstance->variableAdd("eth/enable",        eth_enable,        "📶 Enable ETH Interface");
+    EspToolkitInstance->variableAdd("net/ip",            ip,                "📶 Static IP      (leave blank to use DHCP)");
+    EspToolkitInstance->variableAdd("net/subnet",        subnet,            "📶 Static Subnet  (leave blank to use DHCP)");
+    EspToolkitInstance->variableAdd("net/gateway",       gateway,           "📶 Static Gateway (leave blank to use DHCP)");
+    EspToolkitInstance->variableAdd("net/dns",           dns,               "📶 Static DNS     (leave blank to use DHCP)");
+    EspToolkitInstance->variableAdd("net/sntp",          sntp,              "📶 Static SNTP Server for time synchronisation (leave blank to disable)");
+    EspToolkitInstance->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
+    EspToolkitInstance->variableAdd("ota/caCert",        ota_caCert,        "📶 CA Certificate for OTA Updates");
 
     // COMMANDS
-    tk->commandAdd("netStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+    EspToolkitInstance->commandAdd("netStatus",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
         Network*    _this   = (Network*) ctx;
-        EspToolkit* tk      = (EspToolkit*) _this->tk;
-        char OUT[LONG];
-        reply((char*)"📶 Newtwork:\r\n");
+        
+        reply((char*)"📶 Network:\r\n");
         wifi_mode_t mode;
         const char* m;
         if(esp_wifi_get_mode(&mode) == ESP_ERR_WIFI_NOT_INIT){
@@ -81,14 +82,14 @@ Network::Network(EspToolkit* tk):tk{tk}{
             }
         };
         esp_netif_ip_info_t ipInfoAp, ipInfoSta, ipInfoEth;
-        esp_netif_get_ip_info(_this->netif_ap, &ipInfoAp);
-        esp_netif_get_ip_info(_this->netif_sta, &ipInfoSta);
+        esp_netif_get_ip_info(_this->netif_hotspot, &ipInfoAp);
+        esp_netif_get_ip_info(_this->netif_wifi, &ipInfoSta);
         esp_netif_get_ip_info(_this->netif_eth, &ipInfoEth);
         uint8_t macAp[6], macSta[6];
         esp_wifi_get_mac(WIFI_IF_AP, macAp);
         esp_wifi_get_mac(WIFI_IF_STA, macSta);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",tk->hostname.c_str());reply(OUT);
-        snprintf(OUT,LONG,"%-30s : %s\r\n","Ready",tk->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Hostname",EspToolkitInstance->hostname.c_str());reply(OUT);
+        snprintf(OUT,LONG,"%-30s : %s\r\n","Ready",EspToolkitInstance->status[STATUS_BIT_NETWORK]?"true":"false");reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","WIFI Mode",m);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP IP",IP2STR(&ipInfoAp.ip));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","AP MASK",IP2STR(&ipInfoAp.netmask));reply(OUT);
@@ -121,7 +122,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         snprintf(OUT,LONG,"%-30s : %s\r\n","SNTP Time Sync",sntp_sync_status == SNTP_SYNC_STATUS_COMPLETED ? "true" : "false");reply(OUT);
     },this,  "📶 Wifi status");
     
-    tk->commandAdd("netOta",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
+    EspToolkitInstance->commandAdd("netOta",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
         if(parCnt==2){
 
             // Config OTA
@@ -140,18 +141,18 @@ Network::Network(EspToolkit* tk):tk{tk}{
             }
 
         }else{
-            _this->tk->commandMan("netOta",reply);
+            EspToolkitInstance->commandMan("netOta",reply);
         }
     },this,"📶 [url] | load and install new firmware from URL (https only!)");
 
-    tk->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+    EspToolkitInstance->commandAdd("wifiScan",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+        
         Network*    _this = (Network*) ctx;
         wifi_mode_t mode;
         esp_wifi_get_mode(&mode);
         if(mode == WIFI_MODE_NULL){esp_wifi_set_mode(WIFI_MODE_STA);}
-        uint16_t number = DEFAULT_SCAN_LIST_SIZE;
-        wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+        uint16_t number = NETWORK_DEFAULT_SCAN_LIST_SIZE;
+        wifi_ap_record_t ap_info[NETWORK_DEFAULT_SCAN_LIST_SIZE];
         uint16_t ap_count = 0;
         memset(ap_info, 0, sizeof(ap_info));
         wifi_scan_config_t config{};
@@ -160,7 +161,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
         if(scanResult == ESP_OK) {
             esp_wifi_scan_get_ap_records(&number, ap_info);
             esp_wifi_scan_get_ap_num(&ap_count);
-            for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
+            for (int i = 0; (i < NETWORK_DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
                 const char* authmode{""};
                 const char* pairwise_cipher{""};
                 const char* group_cipher{""};
@@ -203,30 +204,28 @@ Network::Network(EspToolkit* tk):tk{tk}{
         }
     },this, "📶 Scans for nearby networks");
 
-    tk->commandAdd("netCommit",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+    EspToolkitInstance->commandAdd("netCommit",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+        
         Network*    _this = (Network*) ctx;
-        EspToolkit* tk    = (EspToolkit*) _this->tk;
         if(parCnt>=2){
                 snprintf(OUT,LONG,"Set  wifi/enabled: %s\r\n","true");reply(OUT);
-                _this->sta_enable  = true;
+                _this->wifi_enable  = true;
                 snprintf(OUT,LONG,"Set  wifi/network: %s\r\n",param[1]);reply(OUT);
-                _this->sta_network = param[1];
+                _this->wifi_network = param[1];
         };
         if(parCnt>=3){
                 snprintf(OUT,LONG,"Set wifi/password: %s\r\n",param[2]);reply(OUT);
-                _this->sta_password = param[2];
+                _this->wifi_password = param[2];
         };
-        tk->variableLoad(true);
+        EspToolkitInstance->variableLoad(true);
         reply((char*)"DONE! ✅ > Type 'netStatus' to check status\r\n");
         _this->commit();
 
     },this, "📶 [network] [password] | apply network settings and connect to configured network",false);
     
-    tk->commandAdd("netDns",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
-        char OUT[LONG];
+    EspToolkitInstance->commandAdd("netDns",[](void* ctx, void (*reply)(const char*), char** param,uint8_t parCnt){
+        
         Network*    _this = (Network*) ctx;
-        EspToolkit* tk    = (EspToolkit*) _this->tk;
         if(parCnt>=2){
             ip_addr_t ip_Addr;
             dns_gethostbyname(param[1], &ip_Addr, [](const char *name, const ip_addr_t* ipaddr, void *callback_arg){
@@ -241,7 +240,7 @@ Network::Network(EspToolkit* tk):tk{tk}{
             }
             snprintf(OUT,LONG,"❌ DNS lookup timeout\r\n");reply(OUT);
         }else{
-            tk->commandMan("netDns",reply);
+            EspToolkitInstance->commandMan("netDns",reply);
         }
     },this,  "📶 [ip] | resolve DNS");
 
@@ -249,57 +248,57 @@ Network::Network(EspToolkit* tk):tk{tk}{
 
 void Network::commit(){
 
-    tk->status[STATUS_BIT_NETWORK] = true;
+    EspToolkitInstance->status[STATUS_BIT_NETWORK] = true;
 
     // CONFIG
-    bool sta  = sta_enable  && !sta_network.empty();
-    bool ap   = ap_enable   && !tk->hostname.empty();
-    bool eth  = eth_enable  && !tk->hostname.empty();
-    tk->hostname.copy((char*)config_ap.ap.ssid,32,0);
-    tk->password.copy((char*)config_ap.ap.password,64,0);
-    sta_network.copy((char*)config_sta.sta.ssid,32,0);
-    sta_password.copy((char*)config_sta.sta.password,64,0);
+    bool wifi    = wifi_enable     && !wifi_network.empty();
+    bool hotspot = ap_enable  && !EspToolkitInstance->hostname.empty();
+    bool eth     = eth_enable      && !EspToolkitInstance->hostname.empty();
+    EspToolkitInstance->hostname.copy((char*)config_ap.ap.ssid,32,0);
+    EspToolkitInstance->password.copy((char*)config_ap.ap.password,64,0);
+    wifi_network.copy((char*)config_sta.sta.ssid,32,0);
+    wifi_password.copy((char*)config_sta.sta.password,64,0);
 
     // CONFIG INTERFACES
-    if(ap && !netif_ap){
-        netif_ap = esp_netif_create_default_wifi_ap();
+    if(hotspot && !netif_hotspot){
+        netif_hotspot = esp_netif_create_default_wifi_ap();
     }
-    if(sta && !netif_sta){
-        netif_sta = esp_netif_create_default_wifi_sta();
+    if(wifi && !netif_wifi){
+        netif_wifi = esp_netif_create_default_wifi_sta();
     }
 
     // SETUP WIFI
     wifi_init_config_t config_init = WIFI_INIT_CONFIG_DEFAULT();
     esp_wifi_init(&config_init);
-    esp_wifi_set_ps((wifi_ps_type_t)ps_type);
+    esp_wifi_set_ps((wifi_ps_type_t)wifi_powerSave);
 
     // SET WIFI MODE
-    if(sta && ap)   esp_wifi_set_mode(WIFI_MODE_APSTA);
-    else if(ap)     esp_wifi_set_mode(WIFI_MODE_AP);
-    else if(sta)    esp_wifi_set_mode(WIFI_MODE_STA);
+    if(wifi && hotspot)   esp_wifi_set_mode(WIFI_MODE_APSTA);
+    else if(hotspot)     esp_wifi_set_mode(WIFI_MODE_AP);
+    else if(wifi)    esp_wifi_set_mode(WIFI_MODE_STA);
     else            esp_wifi_set_mode(WIFI_MODE_NULL);
 
     // NETIF AP
     wifi_sta_list_t clients;
     esp_wifi_ap_get_sta_list(&clients); 
-    if(ap && !clients.num){
+    if(hotspot && !clients.num){
         esp_wifi_set_config(WIFI_IF_AP, &config_ap);
     }
 
     // NETIF STA
-    if(sta){
+    if(wifi){
         esp_wifi_set_config(WIFI_IF_STA, &config_sta);
-        if(!static_ip.empty() && !static_subnet.empty() && !static_gateway.empty() && !static_dns.empty()){
-            esp_netif_dhcpc_stop(netif_sta);
+        if(!ip.empty() && !subnet.empty() && !gateway.empty() && !dns.empty()){
+            esp_netif_dhcpc_stop(netif_wifi);
             esp_netif_ip_info_t ip_info;
-            ip_info.ip.addr       = static_cast<uint32_t>(ipaddr_addr(static_ip.c_str()));
-            ip_info.gw.addr       = static_cast<uint32_t>(ipaddr_addr(static_gateway.c_str()));
-            ip_info.netmask.addr  = static_cast<uint32_t>(ipaddr_addr(static_subnet.c_str()));
-            esp_netif_set_ip_info(netif_sta,&ip_info);
-            esp_netif_dns_info_t dns;
-	        dns.ip.type = ESP_IPADDR_TYPE_V4;
-	        dns.ip.u_addr.ip4.addr = static_cast<uint32_t>(ipaddr_addr(static_dns.c_str()));
-            esp_netif_set_dns_info(netif_sta,ESP_NETIF_DNS_MAIN,&dns);
+            ip_info.ip.addr       = static_cast<uint32_t>(ipaddr_addr(ip.c_str()));
+            ip_info.gw.addr       = static_cast<uint32_t>(ipaddr_addr(gateway.c_str()));
+            ip_info.netmask.addr  = static_cast<uint32_t>(ipaddr_addr(subnet.c_str()));
+            esp_netif_set_ip_info(netif_wifi,&ip_info);
+            esp_netif_dns_info_t dns_info;
+	        dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+	        dns_info.ip.u_addr.ip4.addr = static_cast<uint32_t>(ipaddr_addr(dns.c_str()));
+            esp_netif_set_dns_info(netif_wifi,ESP_NETIF_DNS_MAIN,&dns_info);
         }
     }
 
@@ -318,17 +317,17 @@ void Network::commit(){
             ESP_ERROR_CHECK(esp_eth_driver_install(&config, &netif_eth_handle));
             ESP_ERROR_CHECK(esp_netif_attach(netif_eth, esp_eth_new_netif_glue(netif_eth_handle)));
         }
-        if(!static_ip.empty() && !static_subnet.empty() && !static_gateway.empty() && !static_dns.empty()){
+        if(!ip.empty() && !subnet.empty() && !gateway.empty() && !dns.empty()){
             esp_netif_dhcpc_stop(netif_eth);
             esp_netif_ip_info_t ip_info;
-            ip_info.ip.addr       = static_cast<uint32_t>(ipaddr_addr(static_ip.c_str()));
-            ip_info.gw.addr       = static_cast<uint32_t>(ipaddr_addr(static_gateway.c_str()));
-            ip_info.netmask.addr  = static_cast<uint32_t>(ipaddr_addr(static_subnet.c_str()));
+            ip_info.ip.addr       = static_cast<uint32_t>(ipaddr_addr(ip.c_str()));
+            ip_info.gw.addr       = static_cast<uint32_t>(ipaddr_addr(gateway.c_str()));
+            ip_info.netmask.addr  = static_cast<uint32_t>(ipaddr_addr(subnet.c_str()));
             esp_netif_set_ip_info(netif_eth,&ip_info);
-            esp_netif_dns_info_t dns;
-	        dns.ip.type = ESP_IPADDR_TYPE_V4;
-	        dns.ip.u_addr.ip4.addr = static_cast<uint32_t>(ipaddr_addr(static_dns.c_str()));
-            esp_netif_set_dns_info(netif_eth,ESP_NETIF_DNS_MAIN,&dns);
+            esp_netif_dns_info_t dns_info;
+	        dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+	        dns_info.ip.u_addr.ip4.addr = static_cast<uint32_t>(ipaddr_addr(dns.c_str()));
+            esp_netif_set_dns_info(netif_eth,ESP_NETIF_DNS_MAIN,&dns_info);
         }else{
             esp_netif_dhcpc_start(netif_eth);
         }
@@ -339,7 +338,7 @@ void Network::commit(){
     // TELNET
     if(telnet_enable){
         if(!telnet){
-            telnet = new Telnet(&(this->tk->events),(char*)EVT_TK_COMMAND,(char*)EVT_TK_BROADCAST);
+            telnet = new Telnet;
         }
     }else if(telnet){
         delete telnet;
@@ -347,13 +346,13 @@ void Network::commit(){
 
     // MDNS
     mdns_init();
-    mdns_hostname_set(_this->tk->hostname.c_str());
-    mdns_instance_name_set(_this->tk->hostname.c_str());
+    mdns_hostname_set(EspToolkitInstance->hostname.c_str());
+    mdns_instance_name_set(EspToolkitInstance->hostname.c_str());
     mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
 
     // SNTP
-    if(!static_sntp.empty()){
-        sntp_setservername(0, (char*)_this->static_sntp.c_str());
+    if(!sntp.empty()){
+        sntp_setservername(0, (char*)_this->sntp.c_str());
         sntp_set_sync_interval(10 * 60 * 1000);
         sntp_init();
     }else{
@@ -361,7 +360,7 @@ void Network::commit(){
     }
 
     // START WIFI
-    if(ap || sta){
+    if(hotspot || wifi){
         esp_wifi_start();
     }else{
         esp_wifi_stop();
@@ -384,47 +383,47 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
         switch (event_id) {
             case WIFI_EVENT_AP_START:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_AP_START");
-                _this->tk->events.emit("WIFI_EVENT_AP_START");
-                esp_netif_set_hostname(_this->netif_ap,_this->tk->hostname.c_str());
+                EspToolkitInstance->events.emit("WIFI_EVENT_AP_START");
+                esp_netif_set_hostname(_this->netif_hotspot,EspToolkitInstance->hostname.c_str());
                 break;
             case SYSTEM_EVENT_AP_STACONNECTED:
                 ESP_LOGI("NETWORK", "SYSTEM_EVENT_AP_STACONNECTED");
-                _this->tk->events.emit("SYSTEM_EVENT_AP_STACONNECTED");
+                EspToolkitInstance->events.emit("SYSTEM_EVENT_AP_STACONNECTED");
                 break;
             case WIFI_EVENT_AP_STACONNECTED:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STACONNECTED");
-                _this->tk->events.emit("WIFI_EVENT_AP_STACONNECTED");
+                EspToolkitInstance->events.emit("WIFI_EVENT_AP_STACONNECTED");
                 break;
             case WIFI_EVENT_AP_STADISCONNECTED:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STADISCONNECTED");
-                _this->tk->events.emit("WIFI_EVENT_AP_STADISCONNECTED");
+                EspToolkitInstance->events.emit("WIFI_EVENT_AP_STADISCONNECTED");
                 break;
             case WIFI_EVENT_AP_STOP:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_AP_STOP");
-                _this->tk->events.emit("WIFI_EVENT_AP_STOP");
+                EspToolkitInstance->events.emit("WIFI_EVENT_AP_STOP");
                 break;
             case WIFI_EVENT_STA_START:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_STA_START");
-                _this->tk->events.emit("WIFI_EVENT_STA_START");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
-                esp_netif_set_hostname(_this->netif_sta,_this->tk->hostname.c_str());
+                EspToolkitInstance->events.emit("WIFI_EVENT_STA_START");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
+                esp_netif_set_hostname(_this->netif_wifi,EspToolkitInstance->hostname.c_str());
                 esp_wifi_connect();
                 break;
             case WIFI_EVENT_STA_CONNECTED:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_STA_CONNECTED");
-                _this->tk->events.emit("WIFI_EVENT_STA_CONNECTED");
-                _this->tk->status[STATUS_BIT_NETWORK] = true;
+                EspToolkitInstance->events.emit("WIFI_EVENT_STA_CONNECTED");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = true;
                 break;
             case WIFI_EVENT_STA_DISCONNECTED:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_STA_DISCONNECTED");
-                _this->tk->events.emit("WIFI_EVENT_STA_DISCONNECTED");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
+                EspToolkitInstance->events.emit("WIFI_EVENT_STA_DISCONNECTED");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
                 esp_wifi_connect();
                 break;
             case WIFI_EVENT_STA_STOP:
                 ESP_LOGI("NETWORK", "WIFI_EVENT_STA_STOP");
-                _this->tk->events.emit("WIFI_EVENT_STA_STOP");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
+                EspToolkitInstance->events.emit("WIFI_EVENT_STA_STOP");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
                 break;
         }
     }
@@ -433,26 +432,26 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
         switch (event_id) {
             case ETHERNET_EVENT_START:
                 ESP_LOGI("NETWORK", "ETHERNET_EVENT_START");
-                _this->tk->events.emit("ETHERNET_EVENT_START");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
+                EspToolkitInstance->events.emit("ETHERNET_EVENT_START");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
                 break;
             case ETHERNET_EVENT_CONNECTED:
                 ESP_LOGI("NETWORK", "ETHERNET_EVENT_CONNECTED");
-                _this->tk->events.emit("ETHERNET_EVENT_CONNECTED");
+                EspToolkitInstance->events.emit("ETHERNET_EVENT_CONNECTED");
                 //uint8_t mac_addr[6]{0};
                 //esp_eth_ioctl(_this->netif_eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
                 //ESP_LOGI("NETWORK", "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-                _this->tk->status[STATUS_BIT_NETWORK] = true;
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = true;
                 break;
             case ETHERNET_EVENT_DISCONNECTED:
                 ESP_LOGI("NETWORK", "ETHERNET_EVENT_DISCONNECTED");
-                _this->tk->events.emit("ETHERNET_EVENT_DISCONNECTED");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
+                EspToolkitInstance->events.emit("ETHERNET_EVENT_DISCONNECTED");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
                 break;
             case ETHERNET_EVENT_STOP:
                 ESP_LOGI("NETWORK", "ETHERNET_EVENT_STOP");
-                _this->tk->events.emit("ETHERNET_EVENT_STOP");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
+                EspToolkitInstance->events.emit("ETHERNET_EVENT_STOP");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
                 break;
         }
     }
@@ -461,25 +460,25 @@ void Network::network_event_handler(void* ctx, esp_event_base_t event_base, int3
         switch (event_id) {
             case IP_EVENT_STA_GOT_IP:
                 ESP_LOGI("NETWORK", "IP_EVENT_STA_GOT_IP");
-                _this->tk->events.emit("IP_EVENT_STA_GOT_IP");
-                _this->tk->status[STATUS_BIT_NETWORK] = true;
+                EspToolkitInstance->events.emit("IP_EVENT_STA_GOT_IP");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = true;
                 break;
             case IP_EVENT_STA_LOST_IP:
                 ESP_LOGI("NETWORK", "IP_EVENT_STA_LOST_IP");
-                _this->tk->events.emit("IP_EVENT_STA_LOST_IP");
-                _this->tk->status[STATUS_BIT_NETWORK] = false;
+                EspToolkitInstance->events.emit("IP_EVENT_STA_LOST_IP");
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = false;
                 break;
             case IP_EVENT_ETH_GOT_IP:
                 ESP_LOGI("NETWORK", "IP_EVENT_ETH_GOT_IP");
-                _this->tk->events.emit("IP_EVENT_ETH_GOT_IP");
+                EspToolkitInstance->events.emit("IP_EVENT_ETH_GOT_IP");
 
                 esp_netif_ip_info_t ipInfoEth;
                 esp_netif_get_ip_info(_this->netif_eth, &ipInfoEth);
-                char OUT[LONG];
+                
                 snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH IP",IP2STR(&ipInfoEth.ip));
                 std:: cout << OUT;
 
-                _this->tk->status[STATUS_BIT_NETWORK] = true;
+                EspToolkitInstance->status[STATUS_BIT_NETWORK] = true;
                 break;
         }
     }
