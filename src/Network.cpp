@@ -54,7 +54,7 @@ Network::Network(){
     EspToolkitInstance->variableAdd("wifi/network",      wifi_network,      "📶 Network SSID");
     EspToolkitInstance->variableAdd("wifi/password",     wifi_password,     "📶 Network Password");
     EspToolkitInstance->variableAdd("wifi/powerSafe",    wifi_powerSave,    "📶 WiFI Power Safe: 0=WIFI_PS_NONE | 1=WIFI_PS_MIN_MODEM | 2=WIFI_PS_MAX_MODEM");
-    EspToolkitInstance->variableAdd("eth/enable",        eth_enable,        "📶 Enable ETH Interface");
+    //EspToolkitInstance->variableAdd("eth/enable",        eth_enable,        "📶 Enable ETH Interface");
     EspToolkitInstance->variableAdd("net/ip",            ip,                "📶 Static IP      (leave blank to use DHCP)");
     EspToolkitInstance->variableAdd("net/subnet",        subnet,            "📶 Static Subnet  (leave blank to use DHCP)");
     EspToolkitInstance->variableAdd("net/gateway",       gateway,           "📶 Static Gateway (leave blank to use DHCP)");
@@ -252,10 +252,13 @@ void Network::commit(){
 
     // CONFIG
     bool wifi    = wifi_enable     && !wifi_network.empty();
-    bool hotspot = ap_enable  && !EspToolkitInstance->hostname.empty();
+    bool hotspot = ap_enable       && !EspToolkitInstance->hostname.empty();
     bool eth     = eth_enable      && !EspToolkitInstance->hostname.empty();
     EspToolkitInstance->hostname.copy((char*)config_ap.ap.ssid,32,0);
-    EspToolkitInstance->password.copy((char*)config_ap.ap.password,64,0);
+    if(!EspToolkitInstance->password.empty()){
+        EspToolkitInstance->password.copy((char*)config_ap.ap.password,64,0);
+        config_ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    }
     wifi_network.copy((char*)config_sta.sta.ssid,32,0);
     wifi_password.copy((char*)config_sta.sta.password,64,0);
 
@@ -283,6 +286,16 @@ void Network::commit(){
     esp_wifi_ap_get_sta_list(&clients); 
     if(hotspot && !clients.num){
         esp_wifi_set_config(WIFI_IF_AP, &config_ap);
+        esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11N);
+        const wifi_country_t wifi_country{
+            .cc="DE",
+            .schan=1,
+            .nchan=13,
+            .max_tx_power=84,
+            .policy=WIFI_COUNTRY_POLICY_AUTO
+        };
+        esp_wifi_set_country(&wifi_country);
+        esp_wifi_set_max_tx_power(84);
     }
 
     // NETIF STA
