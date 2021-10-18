@@ -124,9 +124,9 @@ class EspToolkit{
 // Globals
 extern EspToolkit*                  EspToolkitInstance;
 extern char                         OUT[LONG];
-static double                       mapVal(double, int, int, int, int);
-static inline bool                  sign(double i){return i < 0;};
-static inline double                min(double a, double b){return (a < b ? a : b);};
-static inline double                max(double a, double b){return (a > b ? a : b);};
-static std::vector<std::string>     split(std::string s, std::string delimiter);
-static char*                        loadFile(const char* filename);
+double                              mapVal(double, int, int, int, int);
+inline bool                         sign(double i){return i < 0;};
+inline double                       min(double a, double b){return (a < b ? a : b);};
+inline double                       max(double a, double b){return (a > b ? a : b);};
+std::vector<std::string>            split(std::string s, std::string delimiter);
+char*                               loadFile(const char* filename);

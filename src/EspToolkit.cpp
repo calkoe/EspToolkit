@@ -548,7 +548,7 @@ double mapVal(double x, int in_min, int in_max, int out_min, int out_max)
     return r;
 }
 
-std::vector<std::string> split (std::string s, std::string delimiter) {
+std::vector<std::string>     split(std::string s, std::string delimiter) {
     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
     std::string token;
     std::vector<std::string> res;
