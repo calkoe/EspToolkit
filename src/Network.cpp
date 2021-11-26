@@ -17,18 +17,18 @@ Network::Network(){
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
     // REGISTER RESET BUTTON AP TOGGLE BUTTON
-    if(EspToolkitInstance->configButtonPin>=0){
-        EspToolkitInstance->button.add((gpio_num_t)EspToolkitInstance->configButtonPin,GPIO_FLOATING,1000,(char*)"bootbutton1000ms");
-        EspToolkitInstance->events.on(0,"bootbutton1000ms",[](void* ctx, void* arg){
+    #ifdef TK_BUTTON_PIN
+        EspToolkitInstance->button.add((gpio_num_t)TK_BUTTON_PIN,TK_BUTTON_ACTIVE ? GPIO_PULLDOWN_ONLY : GPIO_PULLUP_ONLY,1000,(char*)"configButton1000");
+        EspToolkitInstance->events.on(0,"configButton1000",[](void* ctx, void* arg){
             Network*    _this = (Network*) ctx;
-            if(!*(bool*)arg){
-                ESP_LOGI("NETWORK", "TOGGLE AP");
+            if(*(bool*)arg == TK_BUTTON_ACTIVE){
+                ESP_LOGE("NETWORK", "TOGGLE AP");
                 _this->ap_enable = !_this->ap_enable;
                 EspToolkitInstance->variableLoad(true);
                 _this->commit();
             }
         },this);
-    }
+    #endif
 
     // AP Autostart
     EspToolkitInstance->timer.setInterval([](void* ctx){
@@ -45,7 +45,7 @@ Network::Network(){
             }
         }
         
-    },10000,this,"hotspot autostart");
+    },10000,this,"hotspot autostart DEMOOOO");
 
     // CONFIG VARIABLES
     EspToolkitInstance->variableAdd("ap/enable",         ap_enable,    "📶 Enable WiFi Hotspot");

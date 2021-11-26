@@ -11,6 +11,7 @@
 #include "freertos/task.h"
 #include "esp_pm.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_vfs.h"
@@ -48,7 +49,6 @@
  * @author  Calvin Köcher | calvin.koecher@alumni.fh-aachen.de
  * @date    7.2021
 */
-
 class EspToolkit{
     
     private:
@@ -100,9 +100,6 @@ class EspToolkit{
 
         // API
         std::string                 appVersion{"generic"};
-        int                         configButtonPin{-1};
-        int                         statusLedPin{-1};
-        bool                        statusLedActive{true};
         bool                        status[5]{true};
         int                         watchdog{-1};
 

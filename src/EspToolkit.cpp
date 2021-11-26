@@ -17,42 +17,42 @@ EspToolkit::EspToolkit(){
 void EspToolkit::begin(){
 
     // Status LED Task
-    for(uint8_t i{0};i<5;i++) status[i] = true;
-    status[STATUS_BIT_SYSTEM] = false;
-    if(statusLedPin>=0){
+    #ifdef TK_STATUS_PIN
+        for(uint8_t i{0};i<5;i++) status[i] = true;
+        status[STATUS_BIT_SYSTEM] = false;
         xTaskCreate([](void* arg){
             EspToolkit* _this = (EspToolkit*) arg;
-            gpio_reset_pin((gpio_num_t)EspToolkitInstance->statusLedPin);
-            gpio_set_direction((gpio_num_t)EspToolkitInstance->statusLedPin, GPIO_MODE_OUTPUT);
+            gpio_reset_pin((gpio_num_t)TK_STATUS_PIN);
+            gpio_set_direction((gpio_num_t)TK_STATUS_PIN, GPIO_MODE_OUTPUT);
             while(true){
                 bool allSet{true};
                 for(uint8_t i{0};i<5;i++) if(!_this->status[i]) allSet = false;
                 if(allSet){
-                    gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,EspToolkitInstance->statusLedActive);
+                    gpio_set_level((gpio_num_t)TK_STATUS_PIN,TK_STATUS_ACTIVE);
                     continue;  
                 }
                 for(uint8_t i{0};i<5;i++){
-                    if(_this->status[i]) gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,EspToolkitInstance->statusLedActive);
+                    if(_this->status[i]) gpio_set_level((gpio_num_t)TK_STATUS_PIN,TK_STATUS_ACTIVE);
                     vTaskDelay(150);
-                    gpio_set_level((gpio_num_t)EspToolkitInstance->statusLedPin,!EspToolkitInstance->statusLedActive);
+                    gpio_set_level((gpio_num_t)TK_STATUS_PIN,!TK_STATUS_ACTIVE);
                     vTaskDelay(150);
                 }
                 vTaskDelay(2000);
             }
         }, "statusled", 2048, this, 0, NULL);
-    }
-    
-    // REGISTER RESET BUTTON
-    if(configButtonPin>=0){
-        button.add((gpio_num_t)configButtonPin,GPIO_FLOATING,5000,"bootbutton5000ms");
-        events.on(0,"bootbutton5000ms",[](void* ctx, void* arg){
-            if(!*(bool*)arg){
+    #endif
+
+    #ifdef TK_BUTTON_PIN
+        // REGISTER RESET BUTTON
+        button.add((gpio_num_t)TK_BUTTON_PIN,TK_BUTTON_ACTIVE ? GPIO_PULLDOWN_ONLY : GPIO_PULLUP_ONLY,20000,"configButton20000");
+        events.on(0,"configButton20000",[](void* ctx, void* arg){
+            if(*(bool*)arg == TK_BUTTON_ACTIVE){
                 ESP_LOGE("TOOLKIT", "BUTTON RESET");
                 EspToolkitInstance->variableLoad(false,true);
                 esp_restart();
             }
         },this);
-    }
+    #endif
 
     // GENERATE Hostname
     uint8_t baseMac[6];

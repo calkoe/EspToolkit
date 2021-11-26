@@ -80,13 +80,15 @@ void Mqtt::commit(){
     if(enable){
 
         // Config
-        config.user_context = this;  
-        config.client_id    = EspToolkitInstance->hostname.empty() ? "EspToolkit" : EspToolkitInstance->hostname.c_str();
-        config.uri          = uri.c_str();
-        config.buffer_size  = 4096;
-        config.task_prio    = 5;
-        config.task_stack   = 8192;
-        config.skip_cert_common_name_check = !caVerify;
+        config.user_context                 = this;  
+        config.client_id                    = EspToolkitInstance->hostname.empty() ? "EspToolkit" : EspToolkitInstance->hostname.c_str();
+        config.uri                          = uri.c_str();
+        config.buffer_size                  = 4096;
+        config.task_prio                    = 5;
+        config.task_stack                   = 8192;
+        config.network_timeout_ms           = 2000;
+        config.reconnect_timeout_ms         = 2000;
+        config.skip_cert_common_name_check  = !caVerify;
         if(!clientCert.empty() && !clientKey.empty()){
             config.client_cert_pem = clientCert.c_str();
             config.client_key_pem  = clientKey.c_str();
@@ -184,7 +186,7 @@ void Mqtt::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t
             break;
         }
         case MQTT_EVENT_ERROR:
-            ESP_LOGI("MQTT", "MQTT_EVENT_ERROR");
+            ESP_LOGE("MQTT", "MQTT_EVENT_ERROR");
             EspToolkitInstance->status[STATUS_BIT_MQTT] = false;
             _this->lastError = *event->error_handle;
             EspToolkitInstance->events.emit("MQTT_EVENT_ERROR");
