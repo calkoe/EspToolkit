@@ -57,7 +57,7 @@ Uart::Uart(){
             vTaskDelay(10);
         }
          
-    }, "uart", 4096, NULL, 1, NULL);
+    }, "uart", 6144, NULL, 1, NULL);
     
 };
 

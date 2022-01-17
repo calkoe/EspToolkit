@@ -17,7 +17,7 @@ Mqtt::Mqtt(){
     EspToolkitInstance->variableAdd("mqtt/clientCert",  clientCert,     "📡 MQTT CLIENT CERT");
     EspToolkitInstance->variableAdd("mqtt/clientKey",   clientKey,      "📡 MQTT CLIENT KEY");
     EspToolkitInstance->variableAdd("mqtt/caCert",      caCert,         "📡 MQTT CA CERT");
-    EspToolkitInstance->variableAdd("mqtt/caVerify",    caVerify,       "📡 MQTT VERIFY CERT");
+    EspToolkitInstance->variableAdd("mqtt/caSkipVerify",config.skip_cert_common_name_check, "📡 MQTT SKIP VERIFY CERT");
     EspToolkitInstance->variableAdd("mqtt/cmdTopic",    cmdTopic,   "📡 MQTT Receive and send Commands via this topic");
 
     EspToolkitInstance->commandAdd("mqttCommit",[](void* c, void (*reply)(const char*), char** param,uint8_t parCnt){
@@ -83,12 +83,6 @@ void Mqtt::commit(){
         config.user_context                 = this;  
         config.client_id                    = EspToolkitInstance->hostname.empty() ? "EspToolkit" : EspToolkitInstance->hostname.c_str();
         config.uri                          = uri.c_str();
-        config.buffer_size                  = 4096;
-        config.task_prio                    = 5;
-        config.task_stack                   = 8192;
-        config.network_timeout_ms           = 2000;
-        config.reconnect_timeout_ms         = 2000;
-        config.skip_cert_common_name_check  = !caVerify;
         if(!clientCert.empty() && !clientKey.empty()){
             config.client_cert_pem = clientCert.c_str();
             config.client_key_pem  = clientKey.c_str();

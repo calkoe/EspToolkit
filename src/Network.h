@@ -27,7 +27,6 @@ class Network{
     private:
 
         static Network* _this;
-        bool begin{false};
 
     public:
 
@@ -80,6 +79,7 @@ class Network{
 
         bool        ap_enable{false};
         bool        ap_autostart{false};
+        bool        mdns_enable{true};
         bool        wifi_enable{false};
         std::string wifi_network;
         std::string wifi_password;

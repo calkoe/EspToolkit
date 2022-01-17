@@ -14,52 +14,56 @@ EspToolkit::EspToolkit(){
 
 }
 
-void EspToolkit::begin(){
+void EspToolkit::begin(bool fast){
 
-    // Status LED Task
-    #ifdef TK_STATUS_PIN
-        for(uint8_t i{0};i<5;i++) status[i] = true;
-        status[STATUS_BIT_SYSTEM] = false;
-        xTaskCreate([](void* arg){
-            EspToolkit* _this = (EspToolkit*) arg;
-            gpio_reset_pin((gpio_num_t)TK_STATUS_PIN);
-            gpio_set_direction((gpio_num_t)TK_STATUS_PIN, GPIO_MODE_OUTPUT);
-            while(true){
-                bool allSet{true};
-                for(uint8_t i{0};i<5;i++) if(!_this->status[i]) allSet = false;
-                if(allSet){
-                    gpio_set_level((gpio_num_t)TK_STATUS_PIN,TK_STATUS_ACTIVE);
-                    continue;  
+    if(!fast){
+
+        // Status LED Task
+        #ifdef TK_STATUS_PIN
+            for(uint8_t i{0};i<5;i++) status[i] = true;
+            status[STATUS_BIT_SYSTEM] = false;
+            xTaskCreate([](void* arg){
+                EspToolkit* _this = (EspToolkit*) arg;
+                gpio_reset_pin((gpio_num_t)TK_STATUS_PIN);
+                gpio_set_direction((gpio_num_t)TK_STATUS_PIN, GPIO_MODE_OUTPUT);
+                while(true){
+                    bool allSet{true};
+                    for(uint8_t i{0};i<5;i++) if(!_this->status[i]) allSet = false;
+                    if(allSet){
+                        gpio_set_level((gpio_num_t)TK_STATUS_PIN,TK_STATUS_ACTIVE);
+                        continue;  
+                    }
+                    for(uint8_t i{0};i<5;i++){
+                        if(_this->status[i]) gpio_set_level((gpio_num_t)TK_STATUS_PIN,TK_STATUS_ACTIVE);
+                        vTaskDelay(150);
+                        gpio_set_level((gpio_num_t)TK_STATUS_PIN,!TK_STATUS_ACTIVE);
+                        vTaskDelay(150);
+                    }
+                    vTaskDelay(2000);
                 }
-                for(uint8_t i{0};i<5;i++){
-                    if(_this->status[i]) gpio_set_level((gpio_num_t)TK_STATUS_PIN,TK_STATUS_ACTIVE);
-                    vTaskDelay(150);
-                    gpio_set_level((gpio_num_t)TK_STATUS_PIN,!TK_STATUS_ACTIVE);
-                    vTaskDelay(150);
+            }, "statusled", 2048, this, 0, NULL);
+        #endif
+
+        #ifdef TK_BUTTON_PIN
+            // REGISTER RESET BUTTON
+            button.add((gpio_num_t)TK_BUTTON_PIN,TK_BUTTON_ACTIVE ? GPIO_PULLDOWN_ONLY : GPIO_PULLUP_ONLY,20000,"configButton20000");
+            events.on(0,"configButton20000",[](void* ctx, void* arg){
+                if(*(bool*)arg == TK_BUTTON_ACTIVE){
+                    ESP_LOGE("TOOLKIT", "BUTTON RESET");
+                    EspToolkitInstance->variableLoad(false,true);
+                    esp_restart();
                 }
-                vTaskDelay(2000);
-            }
-        }, "statusled", 2048, this, 0, NULL);
-    #endif
+            },this);
+        #endif
 
-    #ifdef TK_BUTTON_PIN
-        // REGISTER RESET BUTTON
-        button.add((gpio_num_t)TK_BUTTON_PIN,TK_BUTTON_ACTIVE ? GPIO_PULLDOWN_ONLY : GPIO_PULLUP_ONLY,20000,"configButton20000");
-        events.on(0,"configButton20000",[](void* ctx, void* arg){
-            if(*(bool*)arg == TK_BUTTON_ACTIVE){
-                ESP_LOGE("TOOLKIT", "BUTTON RESET");
-                EspToolkitInstance->variableLoad(false,true);
-                esp_restart();
-            }
-        },this);
-    #endif
+        // GENERATE Hostname
+        uint8_t baseMac[6];
+        esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+        char baseMacChr[20] = {0};
+        sprintf(baseMacChr, "EspToolkit-%02X%02X%02X", baseMac[3], baseMac[4], baseMac[5]);
+        hostname = std::string(baseMacChr);
 
-    // GENERATE Hostname
-    uint8_t baseMac[6];
-    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
-    char baseMacChr[20] = {0};
-    sprintf(baseMacChr, "EspToolkit-%02X%02X%02X", baseMac[3], baseMac[4], baseMac[5]);
-    hostname = std::string(baseMacChr);
+    }
 
     // Initialize and load NVS
     ESP_LOGI("TOOLKIT", "Initializing NVS");
@@ -89,61 +93,63 @@ void EspToolkit::begin(){
             break;
     }
 
-    // Initialize SPIFFS
-    ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
-    esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = NULL,
-      .max_files = 10,
-      .format_if_mount_failed = false
-    };
-    ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE("TOOLKIT", "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE("TOOLKIT", "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE("TOOLKIT", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+    if(!fast){
+
+        // Initialize SPIFFS
+        ESP_LOGI("TOOLKIT", "Initializing SPIFFS");
+        esp_vfs_spiffs_conf_t conf = {
+        .base_path = "/spiffs",
+        .partition_label = NULL,
+        .max_files = 10,
+        .format_if_mount_failed = false
+        };
+        ret = esp_vfs_spiffs_register(&conf);
+        if (ret != ESP_OK) {
+            if (ret == ESP_FAIL) {
+                ESP_LOGE("TOOLKIT", "Failed to mount or format filesystem");
+            } else if (ret == ESP_ERR_NOT_FOUND) {
+                ESP_LOGE("TOOLKIT", "Failed to find SPIFFS partition");
+            } else {
+                ESP_LOGE("TOOLKIT", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+            }
         }
+
+        // Initialize Watchdog
+        ESP_LOGI("TOOLKIT", "Initializing Watchdog");
+        if(watchdog>0){
+            esp_task_wdt_init(watchdog, true); 
+            esp_task_wdt_add(NULL); 
+        }else{
+            esp_task_wdt_deinit();
+        }
+
+        // Initialize Logging
+        ESP_LOGI("TOOLKIT", "Initializing Logging");
+        switch(logLevel){
+            case 0:
+                esp_log_level_set("*", ESP_LOG_ERROR);
+                break;
+            case 1:
+                esp_log_level_set("*", ESP_LOG_WARN);
+                break;
+            case 2:
+                esp_log_level_set("*", ESP_LOG_INFO);
+                break;
+            case 3:
+                esp_log_level_set("*", ESP_LOG_DEBUG);
+                break;
+            case 4:
+                esp_log_level_set("*", ESP_LOG_VERBOSE);
+                break;
+            default:
+                esp_log_level_set("*", ESP_LOG_ERROR);
+                break;
+        }
+
+        //Initialize Sys Status
+        ESP_LOGI("TOOLKIT", "Initializing Sys Status");
+        status[STATUS_BIT_SYSTEM] = true;
     }
-
-    // Initialize Watchdog
-    ESP_LOGI("TOOLKIT", "Initializing Watchdog");
-    if(watchdog>0){
-        esp_task_wdt_init(watchdog, true); 
-        esp_task_wdt_add(NULL); 
-    }else{
-        esp_task_wdt_deinit();
-    }
-
-    // Initialize Logging
-    ESP_LOGI("TOOLKIT", "Initializing Logging");
-    switch(logLevel){
-        case 0:
-            esp_log_level_set("*", ESP_LOG_ERROR);
-            break;
-        case 1:
-            esp_log_level_set("*", ESP_LOG_WARN);
-            break;
-        case 2:
-            esp_log_level_set("*", ESP_LOG_INFO);
-            break;
-        case 3:
-            esp_log_level_set("*", ESP_LOG_DEBUG);
-            break;
-        case 4:
-            esp_log_level_set("*", ESP_LOG_VERBOSE);
-            break;
-        default:
-            esp_log_level_set("*", ESP_LOG_ERROR);
-            break;
-    }
-
-    //Initialize Sys Status
-    ESP_LOGI("TOOLKIT", "Initializing Sys Status");
-    status[STATUS_BIT_SYSTEM] = true;
-
 }
 
 void EspToolkit::loop(){

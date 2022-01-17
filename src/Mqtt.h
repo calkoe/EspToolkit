@@ -33,7 +33,15 @@ class Mqtt{
         void unsubscribe(std::string topic); 
         esp_mqtt_client_handle_t    client{nullptr};
         esp_mqtt_error_codes_t      lastError{};
-        esp_mqtt_client_config_t    config{};
+        esp_mqtt_client_config_t    config{
+            .keepalive                    = 60,
+            .task_prio                    = 5,
+            .task_stack                   = 8192,
+            .buffer_size                  = 4096,
+            .reconnect_timeout_ms         = 2000,
+            .skip_cert_common_name_check  = true,
+            .network_timeout_ms           = 2000
+        };
 
         //CONFIG
         bool                        enable{false};
@@ -41,7 +49,6 @@ class Mqtt{
         std::string                 clientCert;
         std::string                 clientKey;
         std::string                 caCert;
-        bool                        caVerify{false};
         std::string                 cmdTopic;
 
 };

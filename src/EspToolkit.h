@@ -84,7 +84,7 @@ class EspToolkit{
 
         // TOOLS
         EspToolkit();
-        void                        begin();
+        void                        begin(bool fast = false);
         void                        loop();
         PostOffice<std::string>     events{100};
         Button                      button{&events};

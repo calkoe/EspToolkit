@@ -45,7 +45,7 @@ Network::Network(){
             }
         }
         
-    },10000,this,"hotspot autostart DEMOOOO");
+    },10000,this,"hotspot autostart");
 
     // CONFIG VARIABLES
     EspToolkitInstance->variableAdd("ap/enable",         ap_enable,    "📶 Enable WiFi Hotspot");
@@ -60,7 +60,7 @@ Network::Network(){
     EspToolkitInstance->variableAdd("net/gateway",       gateway,           "📶 Static Gateway (leave blank to use DHCP)");
     EspToolkitInstance->variableAdd("net/dns",           dns,               "📶 Static DNS     (leave blank to use DHCP)");
     EspToolkitInstance->variableAdd("net/sntp",          sntp,              "📶 Static SNTP Server for time synchronisation (leave blank to disable)");
-    EspToolkitInstance->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23");
+    EspToolkitInstance->variableAdd("telnet/enable",     telnet_enable,     "📶 Enables Telnet Server on Port 23 (will always be enabled in AP-Mode)");
     EspToolkitInstance->variableAdd("ota/caCert",        ota_caCert,        "📶 CA Certificate for OTA Updates");
 
     // COMMANDS
@@ -196,7 +196,7 @@ Network::Network(){
                         default:  pairwise_cipher = "WIFI_CIPHER_TYPE_UNKNOWN";break;
                     }
                 }
-                snprintf(OUT,LONG,"%-30s : %-3d dBm (%-3d%%) | Authmode: %s | Pairwise_cipher: %s | Group_cipher: %s\r\n",ap_info[i].ssid, ap_info[i].rssi, _this->calcRSSI(ap_info[i].rssi),authmode,pairwise_cipher,group_cipher);reply(OUT);
+                snprintf(OUT,LONG,"%-30s : %-3d dBm (%-3d%%) | Channel: %-2d | Authmode: %s | Pairwise_cipher: %s | Group_cipher: %s\r\n",ap_info[i].ssid, ap_info[i].rssi, _this->calcRSSI(ap_info[i].rssi),ap_info[i].primary,authmode,pairwise_cipher,group_cipher);reply(OUT);
             }
         }else{
             snprintf(OUT,LONG,"Scaning failed: %s\r\n",esp_err_to_name(scanResult));
@@ -272,6 +272,7 @@ void Network::commit(){
 
     // SETUP WIFI
     wifi_init_config_t config_init = WIFI_INIT_CONFIG_DEFAULT();
+    //config_init.nvs_enable = false;
     esp_wifi_init(&config_init);
     esp_wifi_set_ps((wifi_ps_type_t)wifi_powerSave);
 
@@ -349,7 +350,7 @@ void Network::commit(){
     }
 
     // TELNET
-    if(telnet_enable){
+    if(telnet_enable || ap_enable){
         if(!telnet){
             telnet = new Telnet;
         }
@@ -358,10 +359,12 @@ void Network::commit(){
     }
 
     // MDNS
-    mdns_init();
-    mdns_hostname_set(EspToolkitInstance->hostname.c_str());
-    mdns_instance_name_set(EspToolkitInstance->hostname.c_str());
-    mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
+    if(mdns_enable){
+        mdns_init();
+        mdns_hostname_set(EspToolkitInstance->hostname.c_str());
+        mdns_instance_name_set(EspToolkitInstance->hostname.c_str());
+        mdns_service_add("Telnet Server ESP32", "_telnet", "_tcp", 23, NULL, 0);
+    }
 
     // SNTP
     if(!sntp.empty()){
