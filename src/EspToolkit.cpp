@@ -75,24 +75,6 @@ void EspToolkit::begin(bool fast){
     ESP_ERROR_CHECK( ret );
     variableLoad();
 
-    // Initialize CPU
-    ESP_LOGI("TOOLKIT", "Initializing CPU");
-    esp_pm_config_esp32_t pm_config;
-    switch(cpuFreq){
-        case 0:
-            setCpuFrequencyMhz(80); 
-            break;
-        case 1:
-            setCpuFrequencyMhz(160); 
-            break;
-        case 2:
-            setCpuFrequencyMhz(240); 
-            break;
-        default:
-            setCpuFrequencyMhz(240); 
-            break;
-    }
-
     if(!fast){
 
         // Initialize SPIFFS
@@ -385,7 +367,6 @@ void EspToolkit::variablesAddDefault(){
     variableAdd("hostname", hostname,   "🖥  System Hostname");
     variableAdd("password", password,   "🖥  System Password");
     variableAdd("locked",   locked,     "🖥  Locked");
-    variableAdd("cpuFreq",  cpuFreq,    "🖥  CPU Speed: 0=80MHz | 1=160MHz | 2=240MHz");
     variableAdd("loglevel", logLevel,   "🖥  Loglevel: 0=Error | 1=Warning | 2=info | 3=Debug | 4=Verbose");
 };
 
@@ -513,7 +494,6 @@ void EspToolkit::commandAddDefault(){
         snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Max Freq",pm_config.max_freq_mhz);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Min Freq",pm_config.min_freq_mhz);reply(OUT);
         snprintf(OUT,LONG,"%-30s : %s\r\n","CPU light sleep enabled",pm_config.light_sleep_enable ? "true" : "false");reply(OUT);*/
-        snprintf(OUT,LONG,"%-30s : %d MHz\r\n","CPU Freq",getCpuFrequencyMhz());reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d Bytes FREE, %d Bytes MIN FREE\r\n","HEAP",esp_get_free_heap_size(),esp_get_minimum_free_heap_size());reply(OUT);
         nvs_stats_t nvs_stats;
         esp_err_t ret = nvs_get_stats(NVS_DEFAULT_PART_NAME, &nvs_stats);

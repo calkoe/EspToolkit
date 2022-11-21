@@ -18,7 +18,6 @@
 #include "esp_spiffs.h"
 #include "esp_event.h"
 #include "esp_sleep.h"
-#include "esp32-hal-cpu.h"
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 

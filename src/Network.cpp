@@ -117,7 +117,7 @@ Network::Network(){
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH MASK",IP2STR(&ipInfoEth.netmask));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH GW",IP2STR(&ipInfoEth.gw));reply(OUT);
         snprintf(OUT,LONG,"%-30s : %d.%d.%d.%d\r\n","ETH DNS",IP2STR(&dns_getserver(0)->u_addr.ip4));reply(OUT);
-        if(_this->telnet) snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");reply(OUT);
+        if(_this->telnet){snprintf(OUT,LONG,"%-30s : %s\r\n","Telnet connected",_this->telnet->clientSock > 0 ? "true" : "false");reply(OUT);}
         sntp_sync_status_t sntp_sync_status = sntp_get_sync_status();
         snprintf(OUT,LONG,"%-30s : %s\r\n","SNTP Time Sync",sntp_sync_status == SNTP_SYNC_STATUS_COMPLETED ? "true" : "false");reply(OUT);
     },this,  "📶 Wifi status");
