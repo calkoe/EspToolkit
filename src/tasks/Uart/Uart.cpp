@@ -3,7 +3,7 @@
 Uart* Uart::_this{nullptr};
 
 #define EX_UART_NUM UART_NUM_0
-#define BUF_SIZE (1024)
+#define BUF_SIZE (128)
 #define RD_BUF_SIZE (BUF_SIZE)
 const char *TAG = "uart_events";
 static QueueHandle_t uart0_queue;
@@ -25,7 +25,7 @@ Uart::Uart(){
     };
 
     //Install UART driver, and get the queue.
-    uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 20, &uart0_queue, 0);
+    uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 512, &uart0_queue, 0);
     uart_param_config(EX_UART_NUM, &uart_config);
 
     // Setup lineIn
@@ -65,7 +65,6 @@ void Uart::uart_event_task(void *pvParameters)
                 case UART_DATA:
                     ESP_LOGI(TAG, "[UART DATA]: %d", event.size);
                     uart_read_bytes(EX_UART_NUM, dtmp, event.size, portMAX_DELAY);
-                    ESP_LOGI(TAG, "[DATA EVT]:");
                     //num = sprintf(buffer,"%i : %i,",event.size, dtmp[0]);
                     //uart_write_bytes(EX_UART_NUM, buffer, num);
                     _this->lineIn.in((char*)dtmp);
