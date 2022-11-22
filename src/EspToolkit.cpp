@@ -385,9 +385,11 @@ void EspToolkit::commandAddDefault(){
                 }
             }else if(parCnt == 3){
                 gpio_num_t gpio = (gpio_num_t)atoi(param[1]);
+                gpio_hold_dis(gpio);
                 gpio_reset_pin(gpio);
                 gpio_set_direction(gpio,GPIO_MODE_OUTPUT);
                 gpio_set_level(gpio,atoi(param[2]));
+                gpio_hold_en(gpio);
             }else{
                 reply("Invalid parameter!\r\n");
                 EspToolkitInstance->commandMan("gpio",reply);
