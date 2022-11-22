@@ -5,9 +5,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-
-#include "linenoise/linenoise.h"
-#include "esp_vfs_dev.h"
+#include "freertos/queue.h"
+#include "driver/uart.h"
+#include "esp_log.h"
 #include "driver/uart.h"
 
 #include "../../include/LineIn.h"
@@ -25,6 +25,7 @@ class Uart{
         LineIn      lineIn;
        
         static void print(const char* text);
+        static void uart_event_task(void *pvParameters);
 
     public:
 
